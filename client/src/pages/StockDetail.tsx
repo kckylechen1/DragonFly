@@ -61,6 +61,28 @@ export default function StockDetail() {
       <main className="container py-8">
         {isLoading ? (
           <div className="text-center py-12 text-muted-foreground">加载中...</div>
+        ) : !stockDetail || (!stockDetail.quote && !stockDetail.basic) ? (
+          <div className="max-w-2xl mx-auto">
+            <Card className="p-8 bg-card text-center">
+              <div className="mb-4 text-4xl">⚠️</div>
+              <h2 className="text-xl font-semibold text-foreground mb-2">数据获取失败</h2>
+              <p className="text-muted-foreground mb-4">
+                当前 Tushare API 权限不足，无法获取股票数据。
+              </p>
+              <div className="bg-accent/50 rounded-lg p-4 mb-4 text-left">
+                <p className="text-sm text-muted-foreground mb-2">解决方案：</p>
+                <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                  <li>访问 <a href="https://tushare.pro" target="_blank" rel="noopener noreferrer" className="text-primary underline">https://tushare.pro</a> 升级账户</li>
+                  <li>获取完整权限后，数据将自动显示</li>
+                  <li>或联系开发者配置其他数据源</li>
+                </ol>
+              </div>
+              <Button onClick={() => setLocation("/")}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                返回首页
+              </Button>
+            </Card>
+          </div>
         ) : (
           <div className="space-y-6">
             {/* 基本信息卡片 */}

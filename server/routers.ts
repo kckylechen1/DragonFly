@@ -2,6 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
+import * as eastmoney from './eastmoney';
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -28,8 +29,14 @@ export const appRouter = router({
         throw new Error('Invalid input');
       })
       .query(async ({ input }) => {
-        const { searchStock } = await import('./tushare');
-        return await searchStock(input.keyword);
+        try {
+          // 使用东方财富API搜索股票
+          return await eastmoney.searchStock(input.keyword);
+        } catch (error) {
+          console.error('Search failed:', error);
+          // 返回空数组而不是抛出错误
+          return [];
+        }
       }),
     
     // 获取股票详情
@@ -41,28 +48,30 @@ export const appRouter = router({
         throw new Error('Invalid input');
       })
       .query(async ({ input }) => {
-        const { getDailyQuote, getDailyBasic, codeToTsCode, formatDateForTushare } = await import('./tushare');
-        const { getStockByCode } = await import('./db');
-        
-        const tsCode = codeToTsCode(input.code);
-        const today = formatDateForTushare(new Date());
-        
-        // 获取股票基本信息
-        const stockInfo = await getStockByCode(input.code);
-        
-        // 获取实时行情
-        const quotes = await getDailyQuote(tsCode);
-        const latestQuote = quotes && quotes.length > 0 ? quotes[0] : null;
-        
-        // 获取每日指标
-        const basics = await getDailyBasic(tsCode);
-        const latestBasic = basics && basics.length > 0 ? basics[0] : null;
-        
-        return {
-          stock: stockInfo,
-          quote: latestQuote,
-          basic: latestBasic,
-        };
+        try {
+          // 使用东方财富API获取股票详情
+          const quote = await eastmoney.getStockQuote(input.code);
+          const stockInfo = await eastmoney.getStockInfo(input.code);
+          
+          return {
+            stock: stockInfo,
+            quote: quote,
+            basic: {
+              pe: quote.pe,
+              pb: quote.pb,
+              turnoverRate: quote.turnoverRate,
+              marketCap: quote.marketCap,
+              circulationMarketCap: quote.circulationMarketCap,
+            },
+          };
+        } catch (error) {
+          console.error('Get detail failed:', error);
+          return {
+            stock: null,
+            quote: null,
+            basic: null,
+          };
+        }
       }),
     
     // 获取K线数据
@@ -74,64 +83,29 @@ export const appRouter = router({
         throw new Error('Invalid input');
       })
       .query(async ({ input }) => {
-        const { getKlineData: getTushareKline, codeToTsCode, formatDateForTushare, formatTushareDate } = await import('./tushare');
-        const { getKlineData: getDbKline, saveKlineData } = await import('./db');
-        
-        const period = input.period || 'day';
-        const limit = input.limit || 100;
-        
-        // 先从数据库查询
-        const cachedData = await getDbKline(input.code, period, limit);
-        
-        // 如果缓存数据足够，直接返回
-        if (cachedData && cachedData.length >= Math.min(limit, 50)) {
-          return cachedData.map(item => ({
-            time: item.tradeDate,
-            open: parseFloat(item.open),
-            high: parseFloat(item.high),
-            low: parseFloat(item.low),
-            close: parseFloat(item.close),
-            volume: parseFloat(item.volume),
+        try {
+          const period = (input.period || 'day') as 'day' | 'week' | 'month';
+          const limit = input.limit || 100;
+          
+          // 使用东方财富API获取K线数据
+          const klines = await eastmoney.getKlineData(input.code, period);
+          
+          // 限制返回数量
+          const limitedKlines = klines.slice(-limit);
+          
+          // 转换为前端需要的格式
+          return limitedKlines.map((item: any) => ({
+            time: item.date,
+            open: item.open,
+            high: item.high,
+            low: item.low,
+            close: item.close,
+            volume: item.volume,
           }));
+        } catch (error) {
+          console.error('Get kline failed:', error);
+          return [];
         }
-        
-        // 否则从 Tushare 获取
-        const tsCode = codeToTsCode(input.code);
-        const endDate = formatDateForTushare(new Date());
-        const startDate = formatDateForTushare(new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)); // 一年数据
-        
-        const periodMap: Record<string, 'D' | 'W' | 'M'> = {
-          day: 'D',
-          week: 'W',
-          month: 'M',
-        };
-        
-        const tushareData = await getTushareKline(tsCode, startDate, endDate, periodMap[period] || 'D');
-        
-        // 保存到数据库
-        if (tushareData && tushareData.length > 0) {
-          const dataToSave = tushareData.map((item: any) => ({
-            stockCode: input.code,
-            period,
-            tradeDate: formatTushareDate(item.trade_date),
-            open: String(item.open),
-            high: String(item.high),
-            low: String(item.low),
-            close: String(item.close),
-            volume: String(item.vol),
-            amount: String(item.amount || 0),
-          }));
-          await saveKlineData(dataToSave);
-        }
-        
-        return tushareData.map((item: any) => ({
-          time: formatTushareDate(item.trade_date),
-          open: item.open,
-          high: item.high,
-          low: item.low,
-          close: item.close,
-          volume: item.vol,
-        }));
       }),
   }),
   

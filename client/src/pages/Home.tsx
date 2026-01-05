@@ -101,6 +101,29 @@ export default function Home() {
               ))}
             </div>
           )}
+          
+          {/* 搜索无结果提示 */}
+          {searchKeyword && !isSearching && searchResults.length === 0 && (
+            <div className="mt-4 p-4 rounded-lg bg-accent/50 border border-border">
+              <p className="text-sm text-muted-foreground">
+                ⚠️ 搜索功能需要Tushare API权限。请直接输入股票代码（如 002594）添加到观察池。
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2"
+                onClick={() => {
+                  if (searchKeyword.match(/^\d{6}$/)) {
+                    handleAddToWatchlist(searchKeyword);
+                  }
+                }}
+                disabled={!searchKeyword.match(/^\d{6}$/)}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                添加 {searchKeyword} 到观察池
+              </Button>
+            </div>
+          )}
         </Card>
 
         {/* Watchlist Section */}
