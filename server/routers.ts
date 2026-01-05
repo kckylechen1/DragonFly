@@ -17,12 +17,297 @@ export const appRouter = router({
     }),
   }),
 
-  // TODO: add feature routers here, e.g.
-  // todo: router({
-  //   list: protectedProcedure.query(({ ctx }) =>
-  //     db.getUserTodos(ctx.user.id)
-  //   ),
-  // }),
+  // 股票相关路由
+  stocks: router({
+    // 搜索股票
+    search: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === 'object' && val !== null && 'keyword' in val) {
+          return val as { keyword: string };
+        }
+        throw new Error('Invalid input');
+      })
+      .query(async ({ input }) => {
+        const { searchStock } = await import('./tushare');
+        return await searchStock(input.keyword);
+      }),
+    
+    // 获取股票详情
+    getDetail: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === 'object' && val !== null && 'code' in val) {
+          return val as { code: string };
+        }
+        throw new Error('Invalid input');
+      })
+      .query(async ({ input }) => {
+        const { getDailyQuote, getDailyBasic, codeToTsCode, formatDateForTushare } = await import('./tushare');
+        const { getStockByCode } = await import('./db');
+        
+        const tsCode = codeToTsCode(input.code);
+        const today = formatDateForTushare(new Date());
+        
+        // 获取股票基本信息
+        const stockInfo = await getStockByCode(input.code);
+        
+        // 获取实时行情
+        const quotes = await getDailyQuote(tsCode);
+        const latestQuote = quotes && quotes.length > 0 ? quotes[0] : null;
+        
+        // 获取每日指标
+        const basics = await getDailyBasic(tsCode);
+        const latestBasic = basics && basics.length > 0 ? basics[0] : null;
+        
+        return {
+          stock: stockInfo,
+          quote: latestQuote,
+          basic: latestBasic,
+        };
+      }),
+    
+    // 获取K线数据
+    getKline: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === 'object' && val !== null && 'code' in val) {
+          return val as { code: string; period?: string; limit?: number };
+        }
+        throw new Error('Invalid input');
+      })
+      .query(async ({ input }) => {
+        const { getKlineData: getTushareKline, codeToTsCode, formatDateForTushare, formatTushareDate } = await import('./tushare');
+        const { getKlineData: getDbKline, saveKlineData } = await import('./db');
+        
+        const period = input.period || 'day';
+        const limit = input.limit || 100;
+        
+        // 先从数据库查询
+        const cachedData = await getDbKline(input.code, period, limit);
+        
+        // 如果缓存数据足够，直接返回
+        if (cachedData && cachedData.length >= Math.min(limit, 50)) {
+          return cachedData.map(item => ({
+            time: item.tradeDate,
+            open: parseFloat(item.open),
+            high: parseFloat(item.high),
+            low: parseFloat(item.low),
+            close: parseFloat(item.close),
+            volume: parseFloat(item.volume),
+          }));
+        }
+        
+        // 否则从 Tushare 获取
+        const tsCode = codeToTsCode(input.code);
+        const endDate = formatDateForTushare(new Date());
+        const startDate = formatDateForTushare(new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)); // 一年数据
+        
+        const periodMap: Record<string, 'D' | 'W' | 'M'> = {
+          day: 'D',
+          week: 'W',
+          month: 'M',
+        };
+        
+        const tushareData = await getTushareKline(tsCode, startDate, endDate, periodMap[period] || 'D');
+        
+        // 保存到数据库
+        if (tushareData && tushareData.length > 0) {
+          const dataToSave = tushareData.map((item: any) => ({
+            stockCode: input.code,
+            period,
+            tradeDate: formatTushareDate(item.trade_date),
+            open: String(item.open),
+            high: String(item.high),
+            low: String(item.low),
+            close: String(item.close),
+            volume: String(item.vol),
+            amount: String(item.amount || 0),
+          }));
+          await saveKlineData(dataToSave);
+        }
+        
+        return tushareData.map((item: any) => ({
+          time: formatTushareDate(item.trade_date),
+          open: item.open,
+          high: item.high,
+          low: item.low,
+          close: item.close,
+          volume: item.vol,
+        }));
+      }),
+  }),
+  
+  // 观察池路由
+  watchlist: router({
+    // 获取观察池列表
+    list: publicProcedure.query(async () => {
+      const { getWatchlist } = await import('./db');
+      return await getWatchlist();
+    }),
+    
+    // 添加到观察池
+    add: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === 'object' && val !== null && 'stockCode' in val) {
+          return val as { stockCode: string; targetPrice?: string; note?: string; source?: string };
+        }
+        throw new Error('Invalid input');
+      })
+      .mutation(async ({ input }) => {
+        const { addToWatchlist } = await import('./db');
+        await addToWatchlist(input);
+        return { success: true };
+      }),
+    
+    // 从观察池删除
+    remove: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === 'object' && val !== null && 'id' in val && typeof (val as any).id === 'number') {
+          return val as { id: number };
+        }
+        throw new Error('Invalid input');
+      })
+      .mutation(async ({ input }) => {
+        const { removeFromWatchlist } = await import('./db');
+        await removeFromWatchlist(input.id);
+        return { success: true };
+      }),
+    
+    // 更新观察池项
+    update: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === 'object' && val !== null && 'id' in val && typeof (val as any).id === 'number') {
+          return val as { id: number; targetPrice?: string; note?: string };
+        }
+        throw new Error('Invalid input');
+      })
+      .mutation(async ({ input }) => {
+        const { updateWatchlistItem } = await import('./db');
+        const { id, ...data } = input;
+        await updateWatchlistItem(id, data);
+        return { success: true };
+      }),
+  }),
+  
+  // AI分析路由
+  analysis: router({
+    // 获取AI综合分析
+    getAnalysis: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === 'object' && val !== null && 'code' in val) {
+          return val as { code: string };
+        }
+        throw new Error('Invalid input');
+      })
+      .query(async ({ input }) => {
+        const { getAnalysisCache, saveAnalysisCache } = await import('./db');
+        const { invokeLLM } = await import('./_core/llm');
+        const { analyzeTechnicalIndicators } = await import('./indicators');
+        const { getKlineData: getTushareKline, codeToTsCode, formatDateForTushare, formatTushareDate } = await import('./tushare');
+        
+        // 先检查缓存
+        const cached = await getAnalysisCache(input.code);
+        if (cached && cached.updatedAt) {
+          const cacheAge = Date.now() - new Date(cached.updatedAt).getTime();
+          // 如果缓存小于1小时，直接返回
+          if (cacheAge < 60 * 60 * 1000) {
+            return {
+              technicalScore: cached.technicalScore,
+              technicalSignals: JSON.parse(cached.technicalSignals || '[]'),
+              sentimentScore: cached.sentimentScore,
+              sentimentData: JSON.parse(cached.sentimentData || '{}'),
+              capitalScore: cached.capitalScore,
+              capitalData: JSON.parse(cached.capitalData || '{}'),
+              summary: cached.summary,
+              updatedAt: cached.updatedAt,
+            };
+          }
+        }
+        
+        // 获取K线数据用于技术分析
+        const tsCode = codeToTsCode(input.code);
+        const endDate = formatDateForTushare(new Date());
+        const startDate = formatDateForTushare(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)); // 90天数据
+        
+        const klineData = await getTushareKline(tsCode, startDate, endDate, 'D');
+        
+        if (!klineData || klineData.length === 0) {
+          return {
+            technicalScore: 50,
+            technicalSignals: ['数据不足'],
+            sentimentScore: 50,
+            sentimentData: {},
+            capitalScore: 50,
+            capitalData: {},
+            summary: '数据不足，无法进行分析',
+            updatedAt: new Date(),
+          };
+        }
+        
+        // 技术面分析
+        const formattedKlineData = klineData.map((item: any) => ({
+          time: formatTushareDate(item.trade_date),
+          open: item.open,
+          high: item.high,
+          low: item.low,
+          close: item.close,
+          volume: item.vol,
+        }));
+        
+        const technicalAnalysis = analyzeTechnicalIndicators(formattedKlineData);
+        
+        // 使用AI生成综合分析
+        try {
+          const aiResponse = await invokeLLM({
+            messages: [
+              {
+                role: 'system',
+                content: '你是一个专业的A股分析师。请根据技术指标数据，生成简洁的投资建议和风险提示。',
+              },
+              {
+                role: 'user',
+                content: `请分析以下技术指标：\n\n技术面评分：${technicalAnalysis.score}/100\n技术信号：${technicalAnalysis.signals.join(', ')}\n\n请用一段话（不超过50字）给出综合建议。`,
+              },
+            ],
+          });
+          
+          const summary = aiResponse.choices[0]?.message?.content || '技术面表现中等，建议谨慎观望。';
+          
+          // 保存到缓存
+          const analysisData = {
+            technicalScore: technicalAnalysis.score,
+            technicalSignals: JSON.stringify(technicalAnalysis.signals),
+            sentimentScore: 50, // 暂时默认值
+            sentimentData: JSON.stringify({}),
+            capitalScore: 50, // 暂时默认值
+            capitalData: JSON.stringify({}),
+            summary,
+          };
+          
+          await saveAnalysisCache(input.code, analysisData);
+          
+          return {
+            ...analysisData,
+            technicalSignals: technicalAnalysis.signals,
+            sentimentData: {},
+            capitalData: {},
+            updatedAt: new Date(),
+          };
+        } catch (error) {
+          console.error('AI analysis failed:', error);
+          
+          // AI失败时返回基础分析
+          return {
+            technicalScore: technicalAnalysis.score,
+            technicalSignals: technicalAnalysis.signals,
+            sentimentScore: 50,
+            sentimentData: {},
+            capitalScore: 50,
+            capitalData: {},
+            summary: `技术面评分${technicalAnalysis.score}/100，${technicalAnalysis.score >= 60 ? '表现良好' : '表现一般'}。`,
+            updatedAt: new Date(),
+          };
+        }
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

@@ -89,4 +89,119 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// 股票相关查询
+
+export async function getStockByCode(code: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const { stocks } = await import('../drizzle/schema');
+  const result = await db.select().from(stocks).where(eq(stocks.code, code)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function upsertStock(stock: { code: string; name: string; market: string }) {
+  const db = await getDb();
+  if (!db) return;
+  
+  const { stocks } = await import('../drizzle/schema');
+  await db.insert(stocks).values(stock).onDuplicateKeyUpdate({
+    set: { name: stock.name, market: stock.market },
+  });
+}
+
+export async function getAllStocks() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { stocks } = await import('../drizzle/schema');
+  return await db.select().from(stocks);
+}
+
+// 观察池相关查询
+
+export async function getWatchlist() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { watchlist } = await import('../drizzle/schema');
+  return await db.select().from(watchlist);
+}
+
+export async function addToWatchlist(data: { stockCode: string; targetPrice?: string; note?: string; source?: string }) {
+  const db = await getDb();
+  if (!db) return;
+  
+  const { watchlist } = await import('../drizzle/schema');
+  await db.insert(watchlist).values(data);
+}
+
+export async function removeFromWatchlist(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  
+  const { watchlist } = await import('../drizzle/schema');
+  const { eq } = await import('drizzle-orm');
+  await db.delete(watchlist).where(eq(watchlist.id, id));
+}
+
+export async function updateWatchlistItem(id: number, data: { targetPrice?: string; note?: string }) {
+  const db = await getDb();
+  if (!db) return;
+  
+  const { watchlist } = await import('../drizzle/schema');
+  const { eq } = await import('drizzle-orm');
+  await db.update(watchlist).set(data).where(eq(watchlist.id, id));
+}
+
+// K线数据查询
+
+export async function getKlineData(stockCode: string, period: string, limit: number = 100) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { klines } = await import('../drizzle/schema');
+  const { eq, and, desc } = await import('drizzle-orm');
+  
+  return await db.select().from(klines)
+    .where(and(eq(klines.stockCode, stockCode), eq(klines.period, period)))
+    .orderBy(desc(klines.tradeDate))
+    .limit(limit);
+}
+
+export async function saveKlineData(data: any[]) {
+  const db = await getDb();
+  if (!db || data.length === 0) return;
+  
+  const { klines } = await import('../drizzle/schema');
+  
+  // 批量插入，如果存在则忽略
+  for (const item of data) {
+    try {
+      await db.insert(klines).values(item);
+    } catch (error) {
+      // 忽略重复数据错误
+    }
+  }
+}
+
+// AI分析缓存查询
+
+export async function getAnalysisCache(stockCode: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const { analysisCache } = await import('../drizzle/schema');
+  const result = await db.select().from(analysisCache).where(eq(analysisCache.stockCode, stockCode)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function saveAnalysisCache(stockCode: string, data: any) {
+  const db = await getDb();
+  if (!db) return;
+  
+  const { analysisCache } = await import('../drizzle/schema');
+  await db.insert(analysisCache).values({ stockCode, ...data }).onDuplicateKeyUpdate({
+    set: data,
+  });
+}
