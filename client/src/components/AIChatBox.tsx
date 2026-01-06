@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { Loader2, Send, User, Sparkles } from "lucide-react";
+import { Loader2, Send, User, Sparkles, Plus, ArrowUp, Brain, Globe, Paperclip, Mic, Copy, ThumbsUp, ThumbsDown, RotateCcw } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Streamdown } from "streamdown";
 
@@ -57,6 +57,21 @@ export type AIChatBoxProps = {
    * Click to send directly
    */
   suggestedPrompts?: string[];
+
+  /**
+   * Thinking mode state
+   */
+  thinkingMode?: boolean;
+
+  /**
+   * Callback when thinking mode changes
+   */
+  onThinkingModeChange?: (enabled: boolean) => void;
+
+  /**
+   * Callback to regenerate the last response
+   */
+  onRegenerate?: () => void;
 };
 
 /**
@@ -119,8 +134,13 @@ export function AIChatBox({
   height = "600px",
   emptyStateMessage = "Start a conversation with AI",
   suggestedPrompts,
+  thinkingMode = false,
+  onThinkingModeChange,
+  onRegenerate,
 }: AIChatBoxProps) {
   const [input, setInput] = useState("");
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [feedbackIndex, setFeedbackIndex] = useState<{ index: number; type: 'up' | 'down' } | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputAreaRef = useRef<HTMLFormElement>(null);
@@ -261,8 +281,62 @@ export function AIChatBox({
                       )}
                     >
                       {message.role === "assistant" ? (
-                        <div className="prose prose-sm dark:prose-invert max-w-none">
-                          <Streamdown>{message.content}</Streamdown>
+                        <div>
+                          <div className="prose prose-sm dark:prose-invert max-w-none">
+                            <Streamdown>{message.content}</Streamdown>
+                          </div>
+                          {/* AI 回复操作按钮 - 只在有内容且不在加载时显示 */}
+                          {message.content && !isLoading && (
+                            <div className="flex items-center gap-1 mt-3 pt-2 border-t border-border/50">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(message.content);
+                                  setCopiedIndex(index);
+                                  setTimeout(() => setCopiedIndex(null), 2000);
+                                }}
+                                className={`p-1.5 rounded hover:bg-accent transition-colors ${copiedIndex === index
+                                    ? 'text-green-500'
+                                    : 'text-muted-foreground hover:text-foreground'
+                                  }`}
+                                title={copiedIndex === index ? "已复制!" : "复制"}
+                              >
+                                <Copy className="size-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setFeedbackIndex({ index, type: 'up' })}
+                                className={`p-1.5 rounded hover:bg-accent transition-colors ${feedbackIndex?.index === index && feedbackIndex?.type === 'up'
+                                    ? 'text-green-500'
+                                    : 'text-muted-foreground hover:text-foreground'
+                                  }`}
+                                title="有帮助"
+                              >
+                                <ThumbsUp className="size-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setFeedbackIndex({ index, type: 'down' })}
+                                className={`p-1.5 rounded hover:bg-accent transition-colors ${feedbackIndex?.index === index && feedbackIndex?.type === 'down'
+                                    ? 'text-red-500'
+                                    : 'text-muted-foreground hover:text-foreground'
+                                  }`}
+                                title="没帮助"
+                              >
+                                <ThumbsDown className="size-3.5" />
+                              </button>
+                              {isLastMessage && onRegenerate && (
+                                <button
+                                  type="button"
+                                  onClick={onRegenerate}
+                                  className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                                  title="重新生成"
+                                >
+                                  <RotateCcw className="size-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <p className="whitespace-pre-wrap text-sm">
@@ -280,7 +354,8 @@ export function AIChatBox({
                 );
               })}
 
-              {isLoading && (
+              {/* 加载状态 - 使用闪烁的"思考中..." */}
+              {isLoading && displayMessages[displayMessages.length - 1]?.role === "user" && (
                 <div
                   className="flex items-start gap-3"
                   style={
@@ -293,7 +368,12 @@ export function AIChatBox({
                     <Sparkles className="size-4 text-primary" />
                   </div>
                   <div className="rounded-lg bg-muted px-4 py-2.5">
-                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                    <div className="flex items-center gap-2">
+                      <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse" />
+                      <span className="text-sm text-muted-foreground animate-pulse">
+                        {thinkingMode ? "深度思考中..." : "思考中..."}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -302,34 +382,96 @@ export function AIChatBox({
         )}
       </div>
 
-      {/* Input Area */}
-      <form
-        ref={inputAreaRef}
-        onSubmit={handleSubmit}
-        className="flex gap-2 p-4 border-t bg-background/50 items-end"
-      >
-        <Textarea
-          ref={textareaRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          className="flex-1 max-h-32 resize-none min-h-9"
-          rows={1}
-        />
-        <Button
-          type="submit"
-          size="icon"
-          disabled={!input.trim() || isLoading}
-          className="shrink-0 h-[38px] w-[38px]"
+      {/* Input Area - Manus Style */}
+      <div className="p-4 border-t bg-background/50">
+        <form
+          ref={inputAreaRef}
+          onSubmit={handleSubmit}
+          className="relative border border-border rounded-2xl bg-card overflow-hidden focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all"
         >
-          {isLoading ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Send className="size-4" />
-          )}
-        </Button>
-      </form>
+          {/* Textarea */}
+          <Textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              // Auto-resize
+              if (textareaRef.current) {
+                textareaRef.current.style.height = 'auto';
+                textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
+              }
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            className="w-full border-0 bg-transparent px-4 pt-3 pb-12 resize-none min-h-[52px] max-h-[200px] focus-visible:ring-0 focus-visible:ring-offset-0 text-sm"
+            rows={1}
+          />
+
+          {/* Bottom Toolbar */}
+          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-2 bg-card">
+            {/* Left Icons - 功能按钮组 */}
+            <div className="flex items-center gap-0.5">
+              {/* Thinking 模式开关 */}
+              {onThinkingModeChange && (
+                <button
+                  type="button"
+                  onClick={() => onThinkingModeChange(!thinkingMode)}
+                  className={`p-2 rounded-lg transition-all ${thinkingMode
+                    ? 'bg-primary/20 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                    }`}
+                  title={thinkingMode ? "深度思考模式开启" : "开启深度思考"}
+                >
+                  <Brain className="size-4" />
+                </button>
+              )}
+
+              {/* 分隔线 */}
+              {onThinkingModeChange && (
+                <div className="w-px h-4 bg-border mx-1" />
+              )}
+
+              {/* 附件按钮 */}
+              <button
+                type="button"
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                title="添加附件"
+              >
+                <Paperclip className="size-4" />
+              </button>
+            </div>
+
+            {/* Right Icons */}
+            <div className="flex items-center gap-1">
+              {/* 语音按钮 */}
+              <button
+                type="button"
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                title="语音输入"
+              >
+                <Mic className="size-4" />
+              </button>
+
+              {/* Send Button */}
+              <Button
+                type="submit"
+                size="icon"
+                disabled={!input.trim() || isLoading}
+                className={`shrink-0 h-8 w-8 rounded-lg transition-all ${input.trim() && !isLoading
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'
+                  }`}
+              >
+                {isLoading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <ArrowUp className="size-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

@@ -35,6 +35,49 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+
+  // 流式 AI 聊天端点
+  app.post("/api/ai/stream", async (req, res) => {
+    const { streamChat } = await import("./streamChat");
+    const { saveChatHistory } = await import("../local_db");
+
+    // 设置 SSE 头
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+
+    const { messages, stockCode, useThinking } = req.body;
+    let fullContent = "";
+
+    try {
+      for await (const chunk of streamChat({ messages, stockCode, useThinking })) {
+        fullContent += chunk;
+        res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+      }
+      res.write(`data: [DONE]\n\n`);
+
+      // 自动保存聊天历史
+      try {
+        const newHistory = [
+          ...messages,
+          { role: 'assistant', content: fullContent }
+        ];
+        // 异步保存，不阻塞响应结束
+        // Pass stockCode to save persistence for the specific stock
+        saveChatHistory(newHistory, stockCode).catch(console.error);
+      } catch (saveError) {
+        console.error("Failed to auto-save chat history:", saveError);
+      }
+
+    } catch (error) {
+      console.error("Stream error:", error);
+      res.write(`data: ${JSON.stringify({ error: "Stream failed" })}\n\n`);
+    }
+
+    res.end();
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

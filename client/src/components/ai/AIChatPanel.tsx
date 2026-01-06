@@ -1,0 +1,217 @@
+import { useState, useEffect, useRef } from "react";
+import { trpc } from "@/lib/trpc";
+import { Sparkles } from "lucide-react";
+import { AIChatBox, Message } from "@/components/AIChatBox";
+
+export interface AIChatPanelProps {
+    selectedStock: string | null;
+}
+
+// 获取默认系统消息
+const getDefaultMessages = (): Message[] => [
+    {
+        role: "system",
+        content: "你是一个专业的A股分析师助手，帮助用户分析股票、解读技术指标、提供投资建议。",
+    }
+];
+
+export function AIChatPanel({ selectedStock }: AIChatPanelProps) {
+    const [messages, setMessages] = useState<Message[]>(getDefaultMessages());
+    const [thinkingMode, setThinkingMode] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const abortControllerRef = useRef<AbortController | null>(null);
+
+    // 获取当前股票信息用于显示
+    const { data: stockDetail } = trpc.stocks.getDetail.useQuery(
+        { code: selectedStock || "" },
+        { enabled: !!selectedStock }
+    );
+
+    // 获取服务器端聊天历史
+    const { data: historyMessages, isLoading: isHistoryLoading } = trpc.ai.getHistory.useQuery(
+        { stockCode: selectedStock || undefined },
+        {
+            refetchOnWindowFocus: false,
+        }
+    );
+
+    // 当历史记录加载完成后，更新本地消息状态
+    // 当切换股票导致加载时，重置为默认消息
+    useEffect(() => {
+        if (isHistoryLoading) {
+            setMessages(getDefaultMessages());
+        } else if (historyMessages) {
+            if (historyMessages.length > 0) {
+                setMessages(historyMessages);
+            } else {
+                setMessages(getDefaultMessages());
+            }
+        }
+    }, [historyMessages, isHistoryLoading, selectedStock]);
+
+    // 统一的处理流式对话的函数
+    const streamChatRequest = async (historyMessages: Message[]) => {
+        // 取消之前的请求
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+
+        // 添加空的助手消息到UI
+        setMessages([...historyMessages, { role: "assistant", content: "" }]);
+        setIsLoading(true);
+
+        try {
+            const response = await fetch("/api/ai/stream", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    messages: historyMessages.map(m => ({
+                        role: m.role,
+                        content: m.content,
+                    })),
+                    stockCode: selectedStock || undefined,
+                    useThinking: thinkingMode,
+                }),
+                signal: abortControllerRef.current.signal,
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const reader = response.body?.getReader();
+            if (!reader) {
+                throw new Error("No reader available");
+            }
+
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let fullContent = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6).trim();
+                        if (data === '[DONE]') continue;
+
+                        try {
+                            const json = JSON.parse(data);
+                            if (json.content) {
+                                fullContent += json.content;
+                                // 更新最后一条消息
+                                setMessages(prev => {
+                                    const updated = [...prev];
+                                    updated[updated.length - 1] = {
+                                        role: "assistant",
+                                        content: fullContent,
+                                    };
+                                    return updated;
+                                });
+                            }
+                        } catch {
+                            // 忽略解析错误
+                        }
+                    }
+                }
+            }
+
+        } catch (error: any) {
+            if (error.name === 'AbortError') {
+                console.log('Request aborted');
+            } else {
+                console.error("Stream error:", error);
+                setMessages(prev => {
+                    const updated = [...prev];
+                    updated[updated.length - 1] = {
+                        role: "assistant",
+                        content: "抱歉，AI 服务暂时不可用，请稍后再试。",
+                    };
+                    return updated;
+                });
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSendMessage = async (content: string) => {
+        // 添加用户消息
+        const userMessage: Message = { role: "user", content };
+        const newMessages = [...messages, userMessage];
+
+        // 发起请求
+        await streamChatRequest(newMessages);
+    };
+
+    // 重新生成最后一条回复
+    const handleRegenerate = async () => {
+        // 找到最后一条用户消息的位置
+        const lastUserIndex = messages.findLastIndex(m => m.role === 'user');
+        if (lastUserIndex === -1) return;
+
+        // 保留到最后一条用户消息的所有历史（即删除了之后的助手回复）
+        const historyToRegenerate = messages.slice(0, lastUserIndex + 1);
+
+        // 发起请求
+        await streamChatRequest(historyToRegenerate);
+    };
+
+    // 根据选中股票生成快捷提示
+    const suggestedPrompts = selectedStock ? [
+        "帮我分析一下这只股票",
+        "技术面怎么看",
+        "现在适合买入吗",
+    ] : [
+        "如何选股",
+        "什么是MACD",
+        "如何控制风险",
+    ];
+
+    // 判断是否有聊天记录（除了系统消息）
+    const hasHistory = messages.length > 1;
+
+    return (
+        <div className="h-full border-l border-border flex flex-col bg-background">
+            {/* 标题栏 - 简化 */}
+            <div className="p-4 border-b border-border flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <span className="font-semibold text-foreground">AI 助手</span>
+                {selectedStock && stockDetail?.quote?.name && (
+                    <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded">
+                        {stockDetail.quote.name}
+                    </span>
+                )}
+            </div>
+
+            {/* 聊天区域 */}
+            <div className="flex-1 overflow-hidden">
+                <AIChatBox
+                    messages={messages}
+                    onSendMessage={handleSendMessage}
+                    isLoading={isLoading}
+                    placeholder={selectedStock ? `问问关于 ${stockDetail?.quote?.name || selectedStock} 的问题...` : "输入问题..."}
+                    height="100%"
+                    emptyStateMessage={
+                        selectedStock
+                            ? `AI 已加载 ${stockDetail?.quote?.name || selectedStock} 的实时数据，直接提问即可`
+                            : "选择股票后可以进行针对性分析"
+                    }
+                    suggestedPrompts={hasHistory ? [] : suggestedPrompts}
+                    thinkingMode={thinkingMode}
+                    onThinkingModeChange={setThinkingMode}
+                    onRegenerate={handleRegenerate}
+                />
+            </div>
+        </div>
+    );
+}
