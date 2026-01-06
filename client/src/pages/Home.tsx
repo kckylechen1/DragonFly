@@ -49,6 +49,8 @@ export default function Home() {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [selectedStock, setSelectedStock] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isAIChatCollapsed, setIsAIChatCollapsed] = useState(false);
 
   // 已打开的股票标签列表 (只存储 code)
   const [openedTabs, setOpenedTabs] = useState<string[]>([]);
@@ -161,17 +163,20 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* 左侧边栏 - 股票列表 (固定宽度 320px) */}
-      <div className="w-80 shrink-0 border-r border-border flex flex-col">
+      {/* 左侧边栏 - 股票列表 (响应式宽度) */}
+      <div className={`shrink-0 border-r border-border flex flex-col transition-all duration-300 ${
+        isSidebarCollapsed ? 'w-0 hidden' : 'w-full sm:w-72 lg:w-80'
+      }`}>
         {/* 标题栏 - 带齿轮按钮 */}
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-          <span className="font-semibold text-foreground">自选股</span>
+          <span className="font-semibold text-foreground hidden sm:inline">自选股</span>
           <button
             onClick={() => setIsEditMode(!isEditMode)}
-            className={`p-1.5 rounded-md transition-colors ${isEditMode
-              ? 'bg-primary text-primary-foreground'
-              : 'hover:bg-accent text-muted-foreground hover:text-foreground'
-              }`}
+            className={`p-1.5 rounded-md transition-colors ${
+              isEditMode
+                ? 'bg-primary text-primary-foreground'
+                : 'hover:bg-accent text-muted-foreground hover:text-foreground'
+            }`}
             title={isEditMode ? "完成编辑" : "编辑列表"}
           >
             {isEditMode ? <X className="h-4 w-4" /> : <Settings className="h-4 w-4" />}
@@ -181,9 +186,9 @@ export default function Home() {
         {/* 搜索栏 */}
         <div className="p-3 border-b border-border">
           <div className="flex items-center gap-2 bg-input rounded-lg px-3 py-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
+            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
             <Input
-              placeholder="搜索股票代码/名称"
+              placeholder="搜索股票"
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
               onKeyDown={(e) => {
@@ -191,7 +196,7 @@ export default function Home() {
                   handleAddToWatchlist(searchResults[0].code);
                 }
               }}
-              className="border-0 bg-transparent h-6 p-0 focus-visible:ring-0"
+              className="border-0 bg-transparent h-6 p-0 focus-visible:ring-0 text-sm"
             />
           </div>
 
@@ -255,9 +260,9 @@ export default function Home() {
       </div>
 
       {/* 中间内容区 - 左侧(K线+筹码+新闻) + 右侧(AI助手) */}
-      <div className="flex-1 min-w-0 flex">
+      <div className="flex-1 min-w-0 flex flex-col lg:flex-row overflow-hidden">
         {/* 左侧区域：K线+筹码分布 + 新闻分析 */}
-        <div className="flex-1 min-w-0 flex flex-col border-r border-border">
+        <div className="flex-1 min-w-0 flex flex-col border-r border-border order-2 lg:order-1">
           {/* 标签栏 */}
           {openedTabs.length > 0 && (
             <div className="h-9 border-b border-border flex items-center bg-card/50 overflow-x-auto">
@@ -273,10 +278,10 @@ export default function Home() {
             </div>
           )}
 
-          {/* 上半部分：K线图 + 筹码分布 + 技术指标 三栏显示 (占 65%) */}
-          <div className="flex-[65] min-h-0 flex">
-            {/* K线图 (占 60%) */}
-            <div className="flex-[60] min-w-0">
+          {/* 上半部分：K线图 + 筹码分布 + 技术指标 (响应式) */}
+          <div className="flex-[65] min-h-0 flex flex-col lg:flex-row">
+            {/* K线图 */}
+            <div className="flex-1 min-w-0 min-h-[300px] lg:min-h-0">
               {selectedStock ? (
                 <StockDetailPanel stockCode={selectedStock} />
               ) : (
@@ -293,8 +298,8 @@ export default function Home() {
               )}
             </div>
 
-            {/* 筹码分布 (占 20%) */}
-            <div className="flex-[20] min-w-[160px] border-l border-border flex flex-col bg-card/30">
+            {/* 筹码分布 (隐藏于小屏) */}
+            <div className="hidden lg:flex flex-col flex-[20] min-w-[160px] border-l border-border bg-card/30">
               <div className="px-3 py-2.5 border-b border-border">
                 <span className="font-semibold text-foreground text-sm">筹码分布</span>
               </div>
@@ -313,8 +318,8 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 市场情绪 (占 20%) */}
-            <div className="flex-[20] min-w-[160px] border-l border-border flex flex-col bg-card/30">
+            {/* 市场情绪 (隐藏于小屏) */}
+            <div className="hidden lg:flex flex-col flex-[20] min-w-[160px] border-l border-border bg-card/30">
               <div className="px-3 py-2.5 border-b border-border">
                 <span className="font-semibold text-foreground text-sm">市场情绪</span>
               </div>
@@ -382,17 +387,17 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 下半部分：新闻/趋势/情绪分析 (占 35%) */}
-          <div className="flex-[35] min-h-[180px] border-t border-border flex flex-col bg-card/20">
+          {/* 下半部分：新闻/趋势/情绪分析 (响应式) */}
+          <div className="flex-[35] min-h-[180px] lg:min-h-auto border-t border-border flex flex-col bg-card/20">
             {/* 标签导航 */}
-            <div className="h-10 border-b border-border flex items-center gap-1 px-4 bg-card/50">
-              <button className="px-4 py-1.5 text-sm font-medium rounded-md bg-primary/10 text-primary border-b-2 border-primary">
+            <div className="h-10 border-b border-border flex items-center gap-1 px-4 bg-card/50 overflow-x-auto">
+              <button className="px-4 py-1.5 text-sm font-medium rounded-md bg-primary/10 text-primary border-b-2 border-primary whitespace-nowrap">
                 📰 新闻资讯
               </button>
-              <button className="px-4 py-1.5 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
+              <button className="px-4 py-1.5 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors whitespace-nowrap">
                 📈 趋势分析
               </button>
-              <button className="px-4 py-1.5 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
+              <button className="px-4 py-1.5 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors whitespace-nowrap">
                 💡 情绪指标
               </button>
             </div>
@@ -439,8 +444,12 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 右侧AI聊天面板 - 100%高度 */}
-        <div className="w-[620px] shrink-0">
+        {/* 右侧AI聊天面板 - 响应式 */}
+        <div className={`shrink-0 border-l border-border flex flex-col transition-all duration-300 order-1 lg:order-2 ${
+          isAIChatCollapsed 
+            ? 'w-full lg:w-0 hidden lg:flex' 
+            : 'w-full lg:w-[400px] xl:w-[520px] 2xl:w-[620px]'
+        }`}>
           <AIChatPanel selectedStock={selectedStock} />
         </div>
       </div>
