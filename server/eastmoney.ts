@@ -46,7 +46,9 @@ export function convertFromEastmoneyCode(eastmoneyCode: string): string {
 export async function getStockQuote(code: string) {
   try {
     const eastmoneyCode = convertToEastmoneyCode(code);
-    const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${eastmoneyCode}`;
+    // 添加fields参数获取完整数据（市盈率、市净率、换手率等）
+    const fields = 'f43,f44,f45,f46,f47,f48,f58,f60,f116,f117,f162,f167,f168,f169,f170';
+    const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${eastmoneyCode}&fields=${fields}`;
     
     const response = await axios.get(url, { headers: HEADERS });
     const data = response.data;
@@ -75,9 +77,9 @@ export async function getStockQuote(code: string) {
       low: stockData.f45 / 100,
       volume: stockData.f47, // 成交量（手）
       amount: stockData.f48, // 成交额（元）
-      turnoverRate: stockData.f168, // 换手率
-      pe: stockData.f162, // 市盈率
-      pb: stockData.f167, // 市净率
+      turnoverRate: stockData.f168 ? stockData.f168 / 100 : null, // 换手率（需要除以100）
+      pe: stockData.f162 ? stockData.f162 / 100 : null, // 市盈率（需要除以100）
+      pb: stockData.f167 ? stockData.f167 / 100 : null, // 市净率（需要除以100）
       marketCap: stockData.f116, // 总市值
       circulationMarketCap: stockData.f117, // 流通市值
     };
