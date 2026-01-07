@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Settings, X } from "lucide-react";
+import { Search, Plus, Settings, X, PanelRightOpen, PanelRightClose } from "lucide-react";
 
 // 导入模块化组件
 import { StockListItem, StockDetailPanel } from "@/components/stock";
 import { AIChatPanel } from "@/components/ai";
+import { MarketSentimentPanel } from "@/components/market";
 
 // 单个股票标签组件 - 动态获取股票名称
 function StockTab({
@@ -49,11 +50,12 @@ export default function Home() {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [selectedStock, setSelectedStock] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isAIChatCollapsed, setIsAIChatCollapsed] = useState(false);
 
   // 已打开的股票标签列表 (只存储 code)
   const [openedTabs, setOpenedTabs] = useState<string[]>([]);
+
+  // 侧边栏面板显示状态（用于窄屏幕手动展开）
+  const [showSidePanels, setShowSidePanels] = useState(false);
 
   // 获取观察池列表
   const { data: watchlist, isLoading, refetch } = trpc.watchlist.list.useQuery();
@@ -163,20 +165,17 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* 左侧边栏 - 股票列表 (响应式宽度) */}
-      <div className={`shrink-0 border-r border-border flex flex-col transition-all duration-300 ${
-        isSidebarCollapsed ? 'w-0 hidden' : 'w-full sm:w-72 lg:w-80'
-      }`}>
+      {/* 左侧边栏 - 股票列表 (固定宽度 320px) */}
+      <div className="w-80 shrink-0 border-r border-border flex flex-col">
         {/* 标题栏 - 带齿轮按钮 */}
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-          <span className="font-semibold text-foreground hidden sm:inline">自选股</span>
+          <span className="font-semibold text-foreground">自选股</span>
           <button
             onClick={() => setIsEditMode(!isEditMode)}
-            className={`p-1.5 rounded-md transition-colors ${
-              isEditMode
-                ? 'bg-primary text-primary-foreground'
-                : 'hover:bg-accent text-muted-foreground hover:text-foreground'
-            }`}
+            className={`p-1.5 rounded-md transition-colors ${isEditMode
+              ? 'bg-primary text-primary-foreground'
+              : 'hover:bg-accent text-muted-foreground hover:text-foreground'
+              }`}
             title={isEditMode ? "完成编辑" : "编辑列表"}
           >
             {isEditMode ? <X className="h-4 w-4" /> : <Settings className="h-4 w-4" />}
@@ -186,9 +185,9 @@ export default function Home() {
         {/* 搜索栏 */}
         <div className="p-3 border-b border-border">
           <div className="flex items-center gap-2 bg-input rounded-lg px-3 py-2">
-            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            <Search className="h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="搜索股票"
+              placeholder="搜索股票代码/名称"
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
               onKeyDown={(e) => {
@@ -196,7 +195,7 @@ export default function Home() {
                   handleAddToWatchlist(searchResults[0].code);
                 }
               }}
-              className="border-0 bg-transparent h-6 p-0 focus-visible:ring-0 text-sm"
+              className="border-0 bg-transparent h-6 p-0 focus-visible:ring-0"
             />
           </div>
 
@@ -260,9 +259,9 @@ export default function Home() {
       </div>
 
       {/* 中间内容区 - 左侧(K线+筹码+新闻) + 右侧(AI助手) */}
-      <div className="flex-1 min-w-0 flex flex-col lg:flex-row overflow-hidden">
+      <div className="flex-1 min-w-0 flex">
         {/* 左侧区域：K线+筹码分布 + 新闻分析 */}
-        <div className="flex-1 min-w-0 flex flex-col border-r border-border order-2 lg:order-1">
+        <div className="flex-1 min-w-0 flex flex-col border-r border-border">
           {/* 标签栏 */}
           {openedTabs.length > 0 && (
             <div className="h-9 border-b border-border flex items-center bg-card/50 overflow-x-auto">
@@ -278,10 +277,10 @@ export default function Home() {
             </div>
           )}
 
-          {/* 上半部分：K线图 + 筹码分布 + 技术指标 (响应式) */}
-          <div className="flex-[65] min-h-0 flex flex-col lg:flex-row">
-            {/* K线图 */}
-            <div className="flex-1 min-w-0 min-h-[300px] lg:min-h-0">
+          {/* 上半部分：K线图 + 筹码分布 + 技术指标 三栏显示 (占 65%) */}
+          <div className="flex-[65] min-h-0 flex">
+            {/* K线图 - 在普通屏占满宽度，在宽屏(>=1600px)时占60% */}
+            <div className={`flex-1 min-w-[400px] 2xl:flex-[60] relative ${showSidePanels ? 'hidden 2xl:block' : ''}`}>
               {selectedStock ? (
                 <StockDetailPanel stockCode={selectedStock} />
               ) : (
@@ -296,12 +295,32 @@ export default function Home() {
                   </div>
                 </div>
               )}
+
+              {/* 窄屏时显示的展开侧边栏按钮 */}
+              <button
+                onClick={() => setShowSidePanels(!showSidePanels)}
+                className="absolute right-2 top-2 z-20 2xl:hidden p-2 rounded-lg bg-card/90 border border-border hover:bg-accent transition-colors"
+                title={showSidePanels ? "收起侧边栏" : "展开筹码/情绪面板"}
+              >
+                {showSidePanels ? (
+                  <PanelRightClose className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <PanelRightOpen className="h-4 w-4 text-muted-foreground" />
+                )}
+              </button>
             </div>
 
-            {/* 筹码分布 (隐藏于小屏) */}
-            <div className="hidden lg:flex flex-col flex-[20] min-w-[160px] border-l border-border bg-card/30">
-              <div className="px-3 py-2.5 border-b border-border">
+            {/* 筹码分布 (占 20%) - 宽屏自动显示 OR 手动展开时显示 */}
+            <div className={`${showSidePanels ? 'flex' : 'hidden'} 2xl:flex flex-[20] min-w-[160px] border-l border-border flex-col bg-card/30`}>
+              <div className="px-3 py-2.5 border-b border-border flex items-center justify-between">
                 <span className="font-semibold text-foreground text-sm">筹码分布</span>
+                {/* 窄屏时显示关闭按钮 */}
+                <button
+                  onClick={() => setShowSidePanels(false)}
+                  className="2xl:hidden p-1 rounded hover:bg-accent"
+                >
+                  <X className="h-3 w-3 text-muted-foreground" />
+                </button>
               </div>
               <div className="flex-1 flex items-center justify-center p-3">
                 {selectedStock ? (
@@ -318,86 +337,26 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 市场情绪 (隐藏于小屏) */}
-            <div className="hidden lg:flex flex-col flex-[20] min-w-[160px] border-l border-border bg-card/30">
+            {/* 市场情绪 (占 20%) - 宽屏自动显示 OR 手动展开时显示 */}
+            <div className={`${showSidePanels ? 'flex' : 'hidden'} 2xl:flex flex-[20] min-w-[160px] border-l border-border flex-col bg-card/30`}>
               <div className="px-3 py-2.5 border-b border-border">
                 <span className="font-semibold text-foreground text-sm">市场情绪</span>
               </div>
-              <div className="flex-1 overflow-auto p-2">
-                <div className="space-y-2 text-xs">
-                  {/* 恐惧贪婪指数 */}
-                  <div className="p-2 rounded bg-card/50 border border-border/30">
-                    <div className="text-muted-foreground mb-1">恐惧贪婪指数</div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-[#f39c12] font-bold text-xl">68</span>
-                      <span className="text-[#f39c12] text-xs">贪婪</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-gradient-to-r from-[#2ecc71] via-[#f39c12] to-[#e74c3c] rounded-full mt-1.5">
-                      <div className="w-[68%] h-full relative">
-                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow"></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 市场温度 */}
-                  <div className="p-2 rounded bg-card/50 border border-border/30">
-                    <div className="text-muted-foreground mb-1">市场温度</div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl">🔥</span>
-                      <div>
-                        <div className="text-[#e74c3c] font-semibold">偏热</div>
-                        <div className="text-muted-foreground text-xs">较昨日 +5°</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 涨跌比 */}
-                  <div className="p-2 rounded bg-card/50 border border-border/30">
-                    <div className="text-muted-foreground mb-1">今日涨跌</div>
-                    <div className="flex justify-between items-center">
-                      <div className="text-center">
-                        <div className="text-[#e74c3c] font-semibold">3256</div>
-                        <div className="text-muted-foreground text-xs">上涨</div>
-                      </div>
-                      <div className="text-muted-foreground">:</div>
-                      <div className="text-center">
-                        <div className="text-[#2ecc71] font-semibold">1580</div>
-                        <div className="text-muted-foreground text-xs">下跌</div>
-                      </div>
-                    </div>
-                    <div className="flex h-1.5 mt-1.5 rounded-full overflow-hidden">
-                      <div className="bg-[#e74c3c] flex-[67]"></div>
-                      <div className="bg-[#2ecc71] flex-[33]"></div>
-                    </div>
-                  </div>
-
-                  {/* 北向资金 */}
-                  <div className="p-2 rounded bg-card/50 border border-border/30">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">北向资金</span>
-                      <span className="text-[#e74c3c]">+52.3亿</span>
-                    </div>
-                    <div className="flex justify-between mt-1">
-                      <span className="text-muted-foreground">融资余额</span>
-                      <span className="text-foreground">1.82万亿</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <MarketSentimentPanel />
             </div>
           </div>
 
-          {/* 下半部分：新闻/趋势/情绪分析 (响应式) */}
-          <div className="flex-[35] min-h-[180px] lg:min-h-auto border-t border-border flex flex-col bg-card/20">
+          {/* 下半部分：新闻/趋势/情绪分析 (占 35%) */}
+          <div className="flex-[35] min-h-[180px] border-t border-border flex flex-col bg-card/20">
             {/* 标签导航 */}
-            <div className="h-10 border-b border-border flex items-center gap-1 px-4 bg-card/50 overflow-x-auto">
-              <button className="px-4 py-1.5 text-sm font-medium rounded-md bg-primary/10 text-primary border-b-2 border-primary whitespace-nowrap">
+            <div className="h-10 border-b border-border flex items-center gap-1 px-4 bg-card/50">
+              <button className="px-4 py-1.5 text-sm font-medium rounded-md bg-primary/10 text-primary border-b-2 border-primary">
                 📰 新闻资讯
               </button>
-              <button className="px-4 py-1.5 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors whitespace-nowrap">
+              <button className="px-4 py-1.5 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
                 📈 趋势分析
               </button>
-              <button className="px-4 py-1.5 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors whitespace-nowrap">
+              <button className="px-4 py-1.5 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
                 💡 情绪指标
               </button>
             </div>
@@ -444,12 +403,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 右侧AI聊天面板 - 响应式 */}
-        <div className={`shrink-0 border-l border-border flex flex-col transition-all duration-300 order-1 lg:order-2 ${
-          isAIChatCollapsed 
-            ? 'w-full lg:w-0 hidden lg:flex' 
-            : 'w-full lg:w-[400px] xl:w-[520px] 2xl:w-[620px]'
-        }`}>
+        {/* 右侧AI聊天面板 - 响应式宽度：普通屏320px，宽屏620px */}
+        <div className="w-[320px] 2xl:w-[620px] shrink-0">
           <AIChatPanel selectedStock={selectedStock} />
         </div>
       </div>

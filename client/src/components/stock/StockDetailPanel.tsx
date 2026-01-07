@@ -13,7 +13,9 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
     const chartRef = useRef<IChartApi | null>(null);
     const volumeChartRef = useRef<IChartApi | null>(null);
     const seriesRef = useRef<any>(null);
+    const avgSeriesRef = useRef<any>(null); // 均价线引用
     const volumeSeriesRef = useRef<any>(null);
+    const priceLineRef = useRef<any>(null); // 昨收价基准线引用
     const [chartType, setChartType] = useState<'timeline' | 'day' | 'week' | 'month'>('day');
 
     // 悬停时显示的K线数据
@@ -34,10 +36,13 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
         { refetchInterval: 30000 }
     );
 
-    // 获取分时数据
+    // 获取分时数据 - 每5秒刷新一次实现实时更新
     const { data: timelineData } = trpc.stocks.getTimeline.useQuery(
         { code: stockCode },
-        { enabled: chartType === 'timeline' }
+        {
+            enabled: chartType === 'timeline',
+            refetchInterval: chartType === 'timeline' ? 5000 : false, // 分时图模式下每5秒刷新
+        }
     );
 
     // 获取K线数据
@@ -94,7 +99,21 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
             timeScale: {
                 borderColor: 'rgba(255, 255, 255, 0.1)',
                 timeVisible: chartType === 'timeline',
+                secondsVisible: false,
                 tickMarkFormatter: (time: any, tickMarkType: number) => {
+                    // 分时图：显示 HH:mm 格式
+                    if (chartType === 'timeline') {
+                        if (typeof time === 'number') {
+                            // 转换为北京时间 (UTC+8)
+                            const date = new Date(time * 1000);
+                            const hours = date.getUTCHours();
+                            const minutes = date.getUTCMinutes();
+                            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                        }
+                        return String(time);
+                    }
+
+                    // K线图：显示日期格式
                     let month: number, day: number, year: number;
 
                     if (typeof time === 'string') {
@@ -127,13 +146,26 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
 
         // 根据图表类型添加不同的系列
         if (chartType === 'timeline') {
+            // 分时线（白色/灰色）
             const lineSeries = chart.addSeries(LineSeries, {
-                color: '#3b82f6',
+                color: '#e5e7eb', // 浅灰色分时线
                 lineWidth: 2,
                 priceLineVisible: false,
-                lastValueVisible: false,
+                lastValueVisible: true,
+                crosshairMarkerVisible: true,
+                crosshairMarkerRadius: 4,
             });
             seriesRef.current = lineSeries;
+
+            // 均价线（黄色）
+            const avgSeries = chart.addSeries(LineSeries, {
+                color: '#f59e0b', // 黄色均价线
+                lineWidth: 1,
+                priceLineVisible: false,
+                lastValueVisible: false,
+                crosshairMarkerVisible: false,
+            });
+            avgSeriesRef.current = avgSeries;
         } else {
             const candlestickSeries = chart.addSeries(CandlestickSeries, {
                 upColor: '#e74c3c',
@@ -250,14 +282,16 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
     useEffect(() => {
         if (chartType !== 'timeline' || !seriesRef.current || !timelineData?.timeline) return;
 
-        const formattedData: LineData<Time>[] = timelineData.timeline.map((item: any) => {
+        // 分时线数据
+        const priceData: LineData<Time>[] = timelineData.timeline.map((item: any) => {
             const timeParts = item.time.split(' ');
             const dateStr = timeParts[0];
             const timeStr = timeParts[1] || '09:30';
             const [year, month, day] = dateStr.split('-').map(Number);
             const [hour, minute] = timeStr.split(':').map(Number);
-            const date = new Date(year, month - 1, day, hour, minute);
-            const timestamp = Math.floor(date.getTime() / 1000);
+
+            // 创建 UTC 时间戳，这样 lightweight-charts 会正确显示时间
+            const timestamp = Date.UTC(year, month - 1, day, hour, minute, 0) / 1000;
 
             return {
                 time: timestamp as Time,
@@ -265,8 +299,51 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
             };
         });
 
-        if (formattedData.length > 0) {
-            seriesRef.current.setData(formattedData);
+        // 均价线数据
+        const avgData: LineData<Time>[] = timelineData.timeline.map((item: any) => {
+            const timeParts = item.time.split(' ');
+            const dateStr = timeParts[0];
+            const timeStr = timeParts[1] || '09:30';
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const [hour, minute] = timeStr.split(':').map(Number);
+            const timestamp = Date.UTC(year, month - 1, day, hour, minute, 0) / 1000;
+
+            return {
+                time: timestamp as Time,
+                value: item.avgPrice,
+            };
+        });
+
+        if (priceData.length > 0) {
+            // 更新分时线
+            seriesRef.current.setData(priceData);
+
+            // 更新均价线
+            if (avgSeriesRef.current) {
+                avgSeriesRef.current.setData(avgData);
+            }
+
+            // 添加昨收价基准线（虚线）- 先移除旧的再创建新的
+            if (timelineData.preClose && chartRef.current) {
+                // 移除旧的基准线
+                if (priceLineRef.current) {
+                    try {
+                        seriesRef.current.removePriceLine(priceLineRef.current);
+                    } catch (e) {
+                        // 忽略移除失败的情况
+                    }
+                }
+                // 创建新的基准线（虚线样式）
+                priceLineRef.current = seriesRef.current.createPriceLine({
+                    price: timelineData.preClose,
+                    color: 'rgba(128, 128, 128, 0.5)', // 灰色半透明
+                    lineWidth: 1,
+                    lineStyle: 2, // 虚线
+                    axisLabelVisible: true,
+                    title: '',
+                });
+            }
+
             chartRef.current?.timeScale().fitContent();
         }
     }, [timelineData, chartType]);
@@ -464,8 +541,8 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
 
                 {/* 图表区域 */}
                 <div className="flex flex-1 min-h-0 flex-col">
-                    {/* K线图容器 */}
-                    <div className="flex-1 relative">
+                    {/* K线图容器 - 最小高度300px确保图表可见 */}
+                    <div className="flex-1 relative min-h-[300px]">
                         <div ref={chartContainerRef} className="w-full h-full" />
                     </div>
 
