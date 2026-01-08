@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
-import { createChart, CandlestickSeries, LineSeries, HistogramSeries, CandlestickData, LineData, HistogramData, Time } from "lightweight-charts";
+import { createChart, CandlestickSeries, LineSeries, AreaSeries, HistogramSeries, CandlestickData, LineData, HistogramData, Time } from "lightweight-charts";
 import type { IChartApi } from "lightweight-charts";
 
 export interface StockDetailPanelProps {
@@ -146,20 +146,22 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
 
         // 根据图表类型添加不同的系列
         if (chartType === 'timeline') {
-            // 分时线（白色/灰色）
-            const lineSeries = chart.addSeries(LineSeries, {
-                color: '#e5e7eb', // 浅灰色分时线
-                lineWidth: 2,
+            // 分时线（使用 AreaSeries 实现填充效果）
+            const areaSeries = chart.addSeries(AreaSeries, {
+                lineColor: '#60a5fa', // 浅蓝色分时线
+                lineWidth: 1,
+                topColor: 'rgba(96, 165, 250, 0.4)', // 上部渐变色
+                bottomColor: 'rgba(96, 165, 250, 0.05)', // 下部渐变色（近乎透明）
                 priceLineVisible: false,
                 lastValueVisible: true,
                 crosshairMarkerVisible: true,
                 crosshairMarkerRadius: 4,
             });
-            seriesRef.current = lineSeries;
+            seriesRef.current = areaSeries;
 
             // 均价线（黄色）
             const avgSeries = chart.addSeries(LineSeries, {
-                color: '#f59e0b', // 黄色均价线
+                color: '#fbbf24', // 黄色均价线
                 lineWidth: 1,
                 priceLineVisible: false,
                 lastValueVisible: false,
@@ -344,7 +346,22 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
                 });
             }
 
-            chartRef.current?.timeScale().fitContent();
+            // 设置完整的交易时间范围 (9:30 - 15:00)
+            if (chartRef.current && priceData.length > 0) {
+                const firstItem = timelineData.timeline[0];
+                const timeParts = firstItem.time.split(' ');
+                const dateStr = timeParts[0];
+                const [year, month, day] = dateStr.split('-').map(Number);
+
+                // 设置时间范围：9:30 到 15:00
+                const startTime = Date.UTC(year, month - 1, day, 9, 30, 0) / 1000;
+                const endTime = Date.UTC(year, month - 1, day, 15, 0, 0) / 1000;
+
+                chartRef.current.timeScale().setVisibleRange({
+                    from: startTime as Time,
+                    to: endTime as Time,
+                });
+            }
         }
     }, [timelineData, chartType]);
 
