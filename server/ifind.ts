@@ -4,18 +4,13 @@
  */
 
 import axios from 'axios';
+import { ENV } from './_core/env';
 
 const BASE_URL = 'https://quantapi.51ifind.com';
 
-// API 凭证
-const CREDENTIALS = {
-    refreshToken: 'REDACTED_IFIND_REFRESH_TOKEN',
-    accessToken: 'REDACTED_IFIND_ACCESS_TOKEN',
-};
-
 const getHeaders = () => ({
     'Content-Type': 'application/json',
-    'access_token': CREDENTIALS.accessToken,
+    'access_token': ENV.ifindAccessToken,
 });
 
 /**
