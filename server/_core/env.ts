@@ -1,4 +1,4 @@
-import * as dotenv from 'dotenv';
+import * as dotenv from "dotenv";
 
 // 加载环境变量
 dotenv.config();
@@ -11,8 +11,11 @@ export const ENV = {
   ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
   isProduction: process.env.NODE_ENV === "production",
   // 硅基流动 AI API
-  forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "https://api.siliconflow.cn",
-  forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "REDACTED_FORGE_KEY",
+  forgeApiUrl:
+    process.env.BUILT_IN_FORGE_API_URL ?? "https://api.siliconflow.cn",
+  forgeApiKey:
+    process.env.BUILT_IN_FORGE_API_KEY ??
+    "REDACTED_FORGE_KEY",
   // xAI Grok API
   grokApiUrl: process.env.GROK_API_URL ?? "https://api.x.ai/v1",
   grokApiKey: process.env.XAI_API_KEY ?? process.env.GROK_API_KEY ?? "",
@@ -22,6 +25,10 @@ export const ENV = {
   glmApiKey: process.env.GLM_API_KEY ?? "",
   glmModel: process.env.GLM_MODEL ?? "glm-4.7",
   // 同花顺 iFinD API
-  ifindRefreshToken: process.env.IFIND_REFRESH_TOKEN ?? "REDACTED_IFIND_REFRESH_TOKEN",
-  ifindAccessToken: process.env.IFIND_ACCESS_TOKEN ?? "REDACTED_IFIND_ACCESS_TOKEN",
+  ifindRefreshToken:
+    process.env.IFIND_REFRESH_TOKEN ??
+    "REDACTED_IFIND_REFRESH_TOKEN",
+  ifindAccessToken:
+    process.env.IFIND_ACCESS_TOKEN ??
+    "REDACTED_IFIND_ACCESS_TOKEN",
 };
