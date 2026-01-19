@@ -29,15 +29,15 @@ export function SearchSection({
   };
 
   return (
-    <div className="p-3 border-b border-border">
-      <div className="flex items-center gap-2 bg-input rounded-lg px-3 py-2">
+    <div className="p-2 border-b border-border">
+      <div className="flex h-9 items-center gap-2 rounded-md bg-input px-2">
         <Search className="h-4 w-4 text-muted-foreground" />
         <Input
           placeholder="搜索股票代码/名称"
           value={searchKeyword}
           onChange={event => onSearchKeywordChange(event.target.value)}
           onKeyDown={handleKeyDown}
-          className="border-0 bg-transparent h-6 p-0 focus-visible:ring-0"
+          className="h-6 border-0 bg-transparent p-0 text-sm focus-visible:ring-0"
         />
       </div>
 

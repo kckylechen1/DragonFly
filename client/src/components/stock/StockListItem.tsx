@@ -216,7 +216,7 @@ export function StockListItem({
         </div>
 
         {/* 中间：迷你走势图 */}
-        <div className="flex-1 flex justify-center px-2">
+        <div className="w-16 shrink-0 flex justify-center px-1">
           {sparklineData.length > 5 ? (
             <MiniSparkline
               data={sparklineData}

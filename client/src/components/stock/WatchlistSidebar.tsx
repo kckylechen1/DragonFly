@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -48,6 +48,23 @@ export function WatchlistSidebar({
     null
   );
   const [isOverTrash, setIsOverTrash] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  if (isCollapsed) {
+    return (
+      <div className="w-12 shrink-0 border-r border-border flex flex-col items-center py-2 gap-2">
+        <button
+          type="button"
+          onClick={() => setIsCollapsed(false)}
+          className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          aria-label="Expand sidebar"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+        <ThemeToggle />
+      </div>
+    );
+  }
 
   return (
     <div className="w-56 shrink-0 border-r border-border flex flex-col">
@@ -62,7 +79,17 @@ export function WatchlistSidebar({
                 : "5日涨幅"}
           </span>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setIsCollapsed(true)}
+            className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            aria-label="Collapse sidebar"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <ThemeToggle />
+        </div>
       </div>
 
       <SearchSection

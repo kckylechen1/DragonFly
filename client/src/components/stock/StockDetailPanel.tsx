@@ -707,39 +707,40 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
             value={formatMarketCap(quote?.circulationMarketCap)}
           />
         </div>
-      </div>
 
-      {/* 周期选择 - 腾讯自选股风格 */}
-      <div className="px-4 py-2 border-b border-border flex gap-1">
-        {[
-          { key: "timeline", label: "分时" },
-          { key: "timeline3d", label: "3日" },
-          { key: "timeline5d", label: "5日" },
-          { key: "day", label: "日K" },
-          { key: "week", label: "周K" },
-          { key: "month", label: "月K" },
-        ].map(item => (
-          <button
-            key={item.key}
-            onClick={() =>
-              setChartType(
-                item.key as
-                | "timeline"
-                | "timeline3d"
-                | "timeline5d"
-                | "day"
-                | "week"
-                | "month"
-              )
-            }
-            className={`px-4 py-1.5 text-sm font-medium transition-colors ${chartType === item.key
-              ? "text-foreground border-t-2 border-primary"
-              : "text-muted-foreground hover:text-foreground"
+        {/* 周期选择 - 腾讯自选股风格 */}
+        <div className="mt-1 flex gap-1 border-t border-border pt-1.5 -mx-2 px-4 relative z-10">
+          {[
+            { key: "timeline", label: "分时" },
+            { key: "timeline3d", label: "3日" },
+            { key: "timeline5d", label: "5日" },
+            { key: "day", label: "日K" },
+            { key: "week", label: "周K" },
+            { key: "month", label: "月K" },
+          ].map(item => (
+            <button
+              key={item.key}
+              onClick={() =>
+                setChartType(
+                  item.key as
+                  | "timeline"
+                  | "timeline3d"
+                  | "timeline5d"
+                  | "day"
+                  | "week"
+                  | "month"
+                )
+              }
+              className={`px-4 py-1.5 text-sm font-medium transition-colors border-b-2 ${
+                chartType === item.key
+                  ? "text-foreground border-primary"
+                  : "text-muted-foreground border-transparent hover:text-foreground"
               }`}
-          >
-            {item.label}
-          </button>
-        ))}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* K线图 */}
