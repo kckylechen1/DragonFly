@@ -259,10 +259,9 @@ export abstract class BaseAgent {
    * 调用 LLM
    */
   protected async callLLM(): Promise<LLMResponse> {
-    const apiUrl = ENV.grokApiUrl || "https://api.x.ai/v1";
-    const apiKey = ENV.grokApiKey;
-    const model =
-      this.config.model || ENV.grokModel || "grok-4-1-fast-reasoning";
+    const apiUrl = ENV.glmApiUrl || "https://open.bigmodel.cn/api/paas/v4";
+    const apiKey = ENV.glmApiKey;
+    const model = this.config.model || ENV.glmModel || "glm-4.7";
 
     const payload: any = {
       model,

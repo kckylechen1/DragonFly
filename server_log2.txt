@@ -1,0 +1,7 @@
+
+> dragonfly@1.0.0 dev
+> NODE_ENV=development tsx watch server/_core/index.ts
+
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+[OAuth] Initialized with baseURL: http://localhost:3000
+Server running on http://localhost:6888/

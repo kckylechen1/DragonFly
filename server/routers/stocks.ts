@@ -124,16 +124,34 @@ export const stocksRouter = router({
       throw new Error("Invalid input");
     })
     .query(async ({ input }) => {
+      const days = input.days || 1;
+
+      // 数据源1：iFinD
       try {
-        const days = input.days || 1; // 默认1日
-        // 分时图仍使用东方财富（iFind 的分时数据封装尚需优化，暂不作为主力）
-        const data = await eastmoney.getTimelineData(input.code, days);
-        return data;
-      } catch (error) {
-        console.error("Get timeline failed:", error);
-        return { preClose: 0, timeline: [] };
+        const ifindData = await ifind.getTimelineData(input.code, days);
+        if (ifindData && ifindData.timeline && ifindData.timeline.length > 0) {
+          console.log(`[getTimeline] iFinD returned ${ifindData.timeline.length} points`);
+          return ifindData;
+        }
+      } catch (ifindError: any) {
+        console.warn("[getTimeline] iFinD failed:", ifindError?.message);
       }
+
+      // 数据源2：Eastmoney
+      try {
+        const eastmoneyData = await eastmoney.getTimelineData(input.code, days);
+        if (eastmoneyData && eastmoneyData.timeline && eastmoneyData.timeline.length > 0) {
+          console.log(`[getTimeline] Eastmoney returned ${eastmoneyData.timeline.length} points`);
+          return eastmoneyData;
+        }
+      } catch (eastmoneyError: any) {
+        console.warn("[getTimeline] Eastmoney failed:", eastmoneyError?.message);
+      }
+
+      console.error("[getTimeline] All data sources failed");
+      return { preClose: 0, timeline: [] };
     }),
+
 
   // 获取K线数据
   getKline: publicProcedure
@@ -148,31 +166,62 @@ export const stocksRouter = router({
         const period = (input.period || "day") as "day" | "week" | "month";
         const limit = input.limit || 60;
 
-        // 主数据源：iFind，备用：东方财富
-        let klines;
+        let klines: any[] = [];
+
+        // 数据源1：iFind
         try {
           klines = await ifind.getKlineData(input.code, period, limit);
-          // 如果 iFind 返回空数组，也要回退到东方财富
-          if (!klines || klines.length === 0) {
+          if (klines && klines.length > 0) {
+            console.log(`[getKline] iFind returned ${klines.length} bars`);
+          } else {
             throw new Error("iFind returned empty data");
           }
-        } catch (ifindError) {
-          console.warn(
-            "[getKline] iFind failed, falling back to eastmoney:",
-            ifindError
-          );
-          const eastmoneyKlines = await eastmoney.getKlineData(
-            input.code,
-            period
-          );
-          klines = eastmoneyKlines.slice(-limit);
+        } catch (ifindError: any) {
+          console.warn("[getKline] iFind failed:", ifindError?.message);
+
+          // 数据源2：Eastmoney
+          try {
+            const eastmoneyKlines = await eastmoney.getKlineData(input.code, period);
+            if (eastmoneyKlines && eastmoneyKlines.length > 0) {
+              klines = eastmoneyKlines.slice(-limit);
+              console.log(`[getKline] Eastmoney returned ${klines.length} bars`);
+            } else {
+              throw new Error("Eastmoney returned empty data");
+            }
+          } catch (eastmoneyError: any) {
+            console.warn("[getKline] Eastmoney failed:", eastmoneyError?.message);
+
+            // 数据源3：AKShare
+            try {
+              const akshare = await import("../akshare");
+              const akPeriod = period === "day" ? "daily" : period === "week" ? "weekly" : "monthly";
+              const akshareKlines = await akshare.getStockHistory(input.code, akPeriod, limit);
+              if (akshareKlines && akshareKlines.length > 0) {
+                // 转换 AKShare 格式
+                klines = akshareKlines.map((item: any) => ({
+                  time: item.date,
+                  open: item.open,
+                  high: item.high,
+                  low: item.low,
+                  close: item.close,
+                  volume: item.volume,
+                }));
+                console.log(`[getKline] AKShare returned ${klines.length} bars`);
+              }
+            } catch (akshareError: any) {
+              console.error("[getKline] All data sources failed, AKShare error:", akshareError?.message);
+            }
+          }
+        }
+
+        if (!klines || klines.length === 0) {
+          return [];
         }
 
         // 限制返回数量
         const limitedKlines = klines.slice(-limit);
 
         // 转换为前端需要的格式
-        // 兼容 iFind (返回 time) 和 eastmoney (返回 date) 两种数据源
         return limitedKlines.map((item: any) => ({
           time: item.time || item.date,
           open: item.open,

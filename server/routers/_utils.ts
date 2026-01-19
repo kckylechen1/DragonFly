@@ -44,22 +44,47 @@ interface StockQuoteData {
 }
 
 /**
- * 获取行情数据，iFind 优先，东方财富 fallback
+ * 获取行情数据，iFind 优先，东方财富 fallback 或补充
  */
 export async function getQuoteWithFallback(
   code: string
 ): Promise<StockQuoteData | null> {
+  let ifindQuote: any = null;
+  let eastmoneyQuote: any = null;
+
+  // 尝试获取 iFind 数据
   try {
-    const quote = await ifind.getStockQuote(code);
-    if (quote) {
-      return { ...quote, source: "ifind" };
-    }
+    ifindQuote = await ifind.getStockQuote(code);
   } catch (error) {
-    console.warn("iFind quote failed, fallback to eastmoney");
+    console.warn("iFind quote failed, will use eastmoney");
   }
 
-  const quote = await eastmoney.getStockQuote(code);
-  return { ...quote, source: "eastmoney" };
+  // 如果 iFind 没有市值数据 或 完全失败，获取东方财富数据
+  if (!ifindQuote || ifindQuote.marketCap == null) {
+    try {
+      eastmoneyQuote = await eastmoney.getStockQuote(code);
+    } catch (error) {
+      console.warn("Eastmoney quote also failed");
+    }
+  }
+
+  // 合并数据：以 iFind 为主，东方财富补充缺失字段
+  if (ifindQuote) {
+    return {
+      ...ifindQuote,
+      // 如果 iFind 的市值为 null，用东方财富的数据补充
+      marketCap: ifindQuote.marketCap ?? eastmoneyQuote?.marketCap ?? null,
+      circulationMarketCap: ifindQuote.circulationMarketCap ?? eastmoneyQuote?.circulationMarketCap ?? null,
+      source: "ifind" as const,
+    };
+  }
+
+  // iFind 完全失败，使用东方财富
+  if (eastmoneyQuote) {
+    return { ...eastmoneyQuote, source: "eastmoney" as const };
+  }
+
+  return null;
 }
 
 /**

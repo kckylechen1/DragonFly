@@ -50,8 +50,8 @@ export function WatchlistSidebar({
   const [isOverTrash, setIsOverTrash] = useState(false);
 
   return (
-    <div className="w-80 shrink-0 border-r border-border flex flex-col">
-      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+    <div className="w-56 shrink-0 border-r border-border flex flex-col">
+      <div className="px-2 py-1.5 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="font-semibold text-foreground">自选股</span>
           <span className="text-xs text-muted-foreground">
@@ -114,7 +114,7 @@ export function WatchlistSidebar({
       </div>
 
       <div
-        onDragOver={event => {
+        onDragOver={(event: React.DragEvent<HTMLDivElement>) => {
           event.preventDefault();
           setIsOverTrash(true);
         }}

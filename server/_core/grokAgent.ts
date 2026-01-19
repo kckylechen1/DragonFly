@@ -184,24 +184,24 @@ export async function grokAgentChat(
 
   while (iteration < maxIterations) {
     iteration++;
-    console.log(`\n[Grok] 第 ${iteration} 轮对话...`);
+    console.log(`\n[GLM] 第 ${iteration} 轮对话...`);
 
-    const apiKey = ENV.grokApiKey;
+    const apiKey = ENV.glmApiKey;
     const hasNonAscii = /[^\x00-\x7F]/.test(apiKey);
     if (hasNonAscii) {
-      console.error("[Grok] API Key contains non-ASCII characters!");
-      console.error("[Grok] First 20 chars:", apiKey.substring(0, 20));
-      return "Grok 错误：API Key 包含非 ASCII 字符，请检查 .env 文件";
+      console.error("[GLM] API Key contains non-ASCII characters!");
+      console.error("[GLM] First 20 chars:", apiKey.substring(0, 20));
+      return "GLM 错误：API Key 包含非 ASCII 字符，请检查 .env 文件";
     }
 
-    const response = await fetch(`${ENV.grokApiUrl}/chat/completions`, {
+    const response = await fetch(`${ENV.glmApiUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json; charset=utf-8",
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: ENV.grokModel,
+        model: ENV.glmModel,
         messages: messages.map(m => ({
           role: m.role,
           content: m.content,
@@ -322,16 +322,16 @@ export async function* streamGrokAgentChat(
   while (needsToolCall && iteration < maxIterations) {
     iteration++;
 
-    const apiKey = ENV.grokApiKey;
+    const apiKey = ENV.glmApiKey;
     const hasNonAscii = /[^\x00-\x7F]/.test(apiKey);
     if (hasNonAscii) {
-      console.error("[Grok] API Key contains non-ASCII characters!");
-      console.error("[Grok] First 20 chars:", apiKey.substring(0, 20));
-      yield "Grok 错误：API Key 包含非 ASCII 字符，请检查 .env 文件";
+      console.error("[GLM] API Key contains non-ASCII characters!");
+      console.error("[GLM] First 20 chars:", apiKey.substring(0, 20));
+      yield "GLM 错误：API Key 包含非 ASCII 字符，请检查 .env 文件";
       return;
     }
 
-    const response = await fetch(`${ENV.grokApiUrl}/chat/completions`, {
+    const response = await fetch(`${ENV.glmApiUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json; charset=utf-8",
@@ -389,18 +389,18 @@ export async function* streamGrokAgentChat(
   }
 
   // 最终回答阶段（流式）
-  yield "\n🧠 Grok 分析中...\n\n";
+  yield "\n🧠 GLM 分析中...\n\n";
 
-  const apiKey = ENV.grokApiKey;
+  const apiKey = ENV.glmApiKey;
   const hasNonAscii = /[^\x00-\x7F]/.test(apiKey);
   if (hasNonAscii) {
-    console.error("[Grok] API Key contains non-ASCII characters!");
-    console.error("[Grok] First 20 chars:", apiKey.substring(0, 20));
-    yield "Grok 错误：API Key 包含非 ASCII 字符，请检查 .env 文件";
+    console.error("[GLM] API Key contains non-ASCII characters!");
+    console.error("[GLM] First 20 chars:", apiKey.substring(0, 20));
+    yield "GLM 错误：API Key 包含非 ASCII 字符，请检查 .env 文件";
     return;
   }
 
-  const finalResponse = await fetch(`${ENV.grokApiUrl}/chat/completions`, {
+  const finalResponse = await fetch(`${ENV.glmApiUrl}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json; charset=utf-8",

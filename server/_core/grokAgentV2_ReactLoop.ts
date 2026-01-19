@@ -329,15 +329,15 @@ ${traceStr}
 
     try {
       const response = await fetch(
-        `${ENV.grokApiUrl || "https://api.x.ai"}/v1/chat/completions`,
+        `${ENV.glmApiUrl || "https://open.bigmodel.cn/api/paas/v4"}/chat/completions`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json; charset=utf-8",
-            Authorization: `Bearer ${ENV.grokApiKey}`,
+            Authorization: `Bearer ${ENV.glmApiKey}`,
           },
           body: JSON.stringify({
-            model: "grok-4-1-fast",
+            model: "glm-4.7",
             messages: [
               { role: "system", content: systemPrompt },
               { role: "user", content: userPrompt },
@@ -395,15 +395,15 @@ ${traceStr}
 
     try {
       const response = await fetch(
-        `${ENV.grokApiUrl || "https://api.x.ai"}/v1/chat/completions`,
+        `${ENV.glmApiUrl || "https://open.bigmodel.cn/api/paas/v4"}/chat/completions`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json; charset=utf-8",
-            Authorization: `Bearer ${ENV.grokApiKey}`,
+            Authorization: `Bearer ${ENV.glmApiKey}`,
           },
           body: JSON.stringify({
-            model: "grok-4-1-fast",
+            model: "glm-4.7",
             messages: [
               { role: "system", content: systemPrompt },
               { role: "user", content: userPrompt },

@@ -24,24 +24,25 @@ export function StockWorkspace({
   onSelectTopStock,
 }: StockWorkspaceProps) {
   return (
-    <div className="h-full flex items-start justify-center overflow-hidden">
-      <div className="w-full max-w-[1400px] h-full flex flex-col">
-        <StockTabBar
-          openedTabs={openedTabs}
-          selectedStock={selectedStock}
-          onSwitchTab={onSwitchTab}
-          onCloseTab={onCloseTab}
-        />
+    <div className="h-full w-full flex flex-col overflow-hidden">
+      <StockTabBar
+        openedTabs={openedTabs}
+        selectedStock={selectedStock}
+        onSwitchTab={onSwitchTab}
+        onCloseTab={onCloseTab}
+      />
 
+      <div className="flex-1 min-h-0 flex">
         <StockMainPanel
           selectedStock={selectedStock}
           showSidePanels={showSidePanels}
           onToggleSidePanels={onToggleSidePanels}
           onSelectTopStock={onSelectTopStock}
         />
-
-        <StockNewsPanel selectedStock={selectedStock} />
       </div>
+
+      <StockNewsPanel selectedStock={selectedStock} />
     </div>
   );
 }
+

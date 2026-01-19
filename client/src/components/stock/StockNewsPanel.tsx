@@ -4,16 +4,16 @@ export interface StockNewsPanelProps {
 
 export function StockNewsPanel({ selectedStock }: StockNewsPanelProps) {
   return (
-    <div className="flex-[35] min-h-[180px] border-t border-border flex flex-col bg-card/20">
+    <div className="h-[200px] shrink-0 border-t border-border flex flex-col bg-card/20">
       <div className="h-10 border-b border-border flex items-center gap-1 px-4 bg-card/50">
         <button className="px-4 py-1.5 text-sm font-medium rounded-md bg-primary/10 text-primary border-b-2 border-primary">
-          📰 新闻资讯
+          新闻资讯
         </button>
         <button className="px-4 py-1.5 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
-          📈 趋势分析
+          趋势分析
         </button>
         <button className="px-4 py-1.5 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
-          💡 情绪指标
+          情绪指标
         </button>
       </div>
 

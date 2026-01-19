@@ -103,7 +103,7 @@ function MiniSparkline({
   }, [data, preClose, isPositive]);
 
   return (
-    <canvas ref={canvasRef} width={60} height={24} className="opacity-90" />
+    <canvas ref={canvasRef} width={40} height={18} className="opacity-90" />
   );
 }
 
@@ -142,7 +142,8 @@ export function StockListItem({
   const isPositive = changePercent > 0;
   const isNegative = changePercent < 0;
   const currentPrice = quote?.quote?.price || 0;
-  const name = quote?.quote?.name || quote?.stock?.name || "加载中...";
+  const rawName = quote?.stock?.name || quote?.quote?.name || "";
+  const name = rawName === item.stockCode ? "" : rawName || "加载中...";
 
   // 计算5日涨幅
   const calculate5DayChange = () => {
@@ -191,7 +192,7 @@ export function StockListItem({
   return (
     <div
       className={`
-                group px-4 py-3 border-b border-border cursor-pointer transition-all
+                group px-2 py-1.5 border-b border-border cursor-pointer transition-all
                 ${isSelected ? "bg-accent" : "hover:bg-accent/50"}
             `}
       onClick={onClick}
@@ -199,7 +200,7 @@ export function StockListItem({
       <div className="flex items-center justify-between gap-2">
         {/* 左侧：名称和代码 */}
         <div className="flex-1 min-w-0">
-          <div className="font-medium text-foreground truncate">{name}</div>
+          <div className="text-sm font-medium text-foreground truncate">{name}</div>
           <div className="flex items-center gap-1 mt-0.5">
             {market.tag && (
               <span
@@ -223,7 +224,7 @@ export function StockListItem({
               isPositive={isPositive}
             />
           ) : (
-            <div className="w-[60px] h-[24px]" />
+            <div className="w-[40px] h-[18px]" />
           )}
         </div>
 
@@ -234,7 +235,7 @@ export function StockListItem({
               e.stopPropagation();
               onToggleDisplayMode?.();
             }}
-            className={`px-2 py-1 rounded text-xs font-medium text-white tabular-nums min-w-[68px] text-center ${badgeColor} hover:opacity-90 transition-opacity`}
+            className={`px-1.5 py-0.5 rounded text-[10px] font-medium text-white tabular-nums min-w-[52px] text-center ${badgeColor} hover:opacity-90 transition-opacity`}
           >
             {displayMode === "percent" && (
               <>

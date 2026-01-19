@@ -1,0 +1,42 @@
+
+> dragonfly@1.0.0 dev
+> NODE_ENV=development tsx watch server/_core/index.ts
+
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+[OAuth] Initialized with baseURL: http://localhost:3000
+/Users/kc/Desktop/stock-tracker/node_modules/rollup/dist/native.js:86
+		throw new Error(
+		      ^
+
+Error: Cannot find module @rollup/rollup-darwin-x64. npm has a bug related to optional dependencies (https://github.com/npm/cli/issues/4828). Please try `npm i` again after removing both package-lock.json and node_modules directory.
+    at requireWithFriendlyError (/Users/kc/Desktop/stock-tracker/node_modules/rollup/dist/native.js:86:9)
+    at Object.<anonymous> (/Users/kc/Desktop/stock-tracker/node_modules/rollup/dist/native.js:95:76)
+    at Module._compile (node:internal/modules/cjs/loader:1730:14)
+    at Object.transformer (/Users/kc/Desktop/stock-tracker/node_modules/tsx/dist/register-D46fvsV_.cjs:3:1104)
+    at Module.load (node:internal/modules/cjs/loader:1465:32)
+    at Function._load (node:internal/modules/cjs/loader:1282:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at cjsLoader (node:internal/modules/esm/translators:266:5)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:200:7) {
+  [cause]: Error: Cannot find module '@rollup/rollup-darwin-x64'
+  Require stack:
+  - /Users/kc/Desktop/stock-tracker/node_modules/rollup/dist/native.js
+      at node:internal/modules/cjs/loader:1401:15
+      at nextResolveSimple (/Users/kc/Desktop/stock-tracker/node_modules/tsx/dist/register-D46fvsV_.cjs:4:1004)
+      at /Users/kc/Desktop/stock-tracker/node_modules/tsx/dist/register-D46fvsV_.cjs:3:2630
+      at /Users/kc/Desktop/stock-tracker/node_modules/tsx/dist/register-D46fvsV_.cjs:3:1542
+      at resolveTsPaths (/Users/kc/Desktop/stock-tracker/node_modules/tsx/dist/register-D46fvsV_.cjs:4:760)
+      at /Users/kc/Desktop/stock-tracker/node_modules/tsx/dist/register-D46fvsV_.cjs:4:1102
+      at m._resolveFilename (file:///Users/kc/Desktop/stock-tracker/node_modules/tsx/dist/register-B7jrtLTO.mjs:1:789)
+      at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+      at Function._load (node:internal/modules/cjs/loader:1211:37) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [
+      '/Users/kc/Desktop/stock-tracker/node_modules/rollup/dist/native.js'
+    ]
+  }
+}
+
+Node.js v22.16.0

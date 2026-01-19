@@ -1,8 +1,8 @@
 /**
- * Grok AI 客户端
- * 使用 xAI 的 Grok-4 作为前端对话模型
+ * GLM AI 客户端
+ * 使用智谱AI的 GLM-4.7 作为前端对话模型
  *
- * 架构：Grok（聪明）+ Qwen3（便宜的工具调用）
+ * 架构：GLM（聪明）+ Qwen3（便宜的工具调用）
  */
 
 import { ENV } from "./env";
@@ -33,29 +33,29 @@ export interface GrokResponse {
 // ==================== Grok 客户端 ====================
 
 /**
- * 调用 Grok API
+ * 调用 GLM API
  */
-async function callGrokAPI(
+async function callGLMAPI(
   messages: ChatMessage[],
   stream: boolean = false
 ): Promise<Response> {
-  const apiKey = ENV.grokApiKey;
+  const apiKey = ENV.glmApiKey;
 
   const hasNonAscii = /[^\x00-\x7F]/.test(apiKey);
   if (hasNonAscii) {
-    console.error("[Grok] API Key contains non-ASCII characters!");
-    console.error("[Grok] First 20 chars:", apiKey.substring(0, 20));
-    throw new Error("Grok API Key 包含非 ASCII 字符，请检查 .env 文件");
+    console.error("[GLM] API Key contains non-ASCII characters!");
+    console.error("[GLM] First 20 chars:", apiKey.substring(0, 20));
+    throw new Error("GLM API Key 包含非 ASCII 字符，请检查 .env 文件");
   }
 
-  const response = await fetch(`${ENV.grokApiUrl}/chat/completions`, {
+  const response = await fetch(`${ENV.glmApiUrl}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: ENV.grokModel,
+      model: ENV.glmModel,
       messages,
       stream,
       temperature: 0.7,
@@ -65,7 +65,7 @@ async function callGrokAPI(
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`Grok API Error: ${response.status} - ${error}`);
+    throw new Error(`GLM API Error: ${response.status} - ${error}`);
   }
 
   return response;
@@ -86,7 +86,7 @@ export async function chatWithGrok(
     ...messages,
   ];
 
-  const response = await callGrokAPI(fullMessages, false);
+  const response = await callGLMAPI(fullMessages, false);
   const data: GrokResponse = await response.json();
 
   return data.choices[0]?.message?.content || "";
@@ -106,7 +106,7 @@ export async function* streamChatWithGrok(
     ...messages,
   ];
 
-  const response = await callGrokAPI(fullMessages, true);
+  const response = await callGLMAPI(fullMessages, true);
   const reader = response.body?.getReader();
   const decoder = new TextDecoder();
 

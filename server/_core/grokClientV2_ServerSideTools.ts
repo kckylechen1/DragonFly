@@ -1,14 +1,14 @@
 /**
  * Grok 4.1 Server-Side Tools 集成方案（方向1）
- * 
+ *
  * 核心优势：
  * - 零自建基础设施：web_search, code_execution 由 xAI 完全托管
  * - 4小时集成：不需要改造 ReAct Loop，直接用 Grok 自带 tools
  * - 成本可控：$5/1000次工具调用
  * - 立即拥有 grok.com 级自主能力
- * 
+ *
  * 适用场景：MVP、快速验证、小规模生产
- * 
+ *
  * VS 方向2：
  * 方向1 = 快速上线（用现成工具）
  * 方向2 = 长期掌控（自建工具链+ReAct+沙箱）
@@ -162,8 +162,7 @@ const localStockTools = [
     type: "function" as const,
     function: {
       name: "akshare_bull_signal_backtest",
-      description:
-        "回测牛股信号（基于技术面+资金面）- 本地执行，Grok 无法调用",
+      description: "回测牛股信号（基于技术面+资金面）- 本地执行，Grok 无法调用",
       parameters: {
         type: "object",
         properties: {
@@ -248,16 +247,16 @@ export async function grokAgentChatV2(
     iteration++;
     console.log(`\n[Grok] 第 ${iteration} 轮...`);
 
-    const apiKey = ENV.grokApiKey;
+    const apiKey = ENV.glmApiKey;
     const hasNonAscii = /[^\x00-\x7F]/.test(apiKey);
     if (hasNonAscii) {
-      console.error("[Grok] API Key contains non-ASCII characters!");
-      return "❌ Grok API Key 错误";
+      console.error("[GLM] API Key contains non-ASCII characters!");
+      return "❌ GLM API Key 错误";
     }
 
     try {
       const response = await fetch(
-        `${ENV.grokApiUrl || "https://api.x.ai"}/v1/chat/completions`,
+        `${ENV.glmApiUrl || "https://open.bigmodel.cn/api/paas/v4"}/chat/completions`,
         {
           method: "POST",
           headers: {
@@ -265,8 +264,8 @@ export async function grokAgentChatV2(
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            model: "grok-4-1-fast", // 使用 4.1 Fast 版本
-            messages: messages.map((m) => ({
+            model: "glm-4.7", // 使用 GLM 4.7 版本
+            messages: messages.map(m => ({
               role: m.role,
               content: m.content,
               ...(m.tool_calls && { tool_calls: m.tool_calls }),
@@ -296,7 +295,10 @@ export async function grokAgentChatV2(
 
       // 关键：xAI 在 server-side 执行了工具并返回结果
       // 如果有 tool_calls，说明还需要本地代理处理
-      if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+      if (
+        assistantMessage.tool_calls &&
+        assistantMessage.tool_calls.length > 0
+      ) {
         console.log(
           `[Grok] 调用了 ${assistantMessage.tool_calls.length} 个工具`
         );
@@ -392,9 +394,9 @@ export async function* streamGrokAgentChatV2(
   // 第一阶段：工具调用循环（非流式）
   while (hasToolCalls && iteration < maxIterations) {
     iteration++;
-    yield `[Grok 轮 ${iteration}...] `;
+    yield `[GLM 轮 ${iteration}...] `;
 
-    const apiKey = ENV.grokApiKey;
+    const apiKey = ENV.glmApiKey;
     if (/[^\x00-\x7F]/.test(apiKey)) {
       yield "❌ API Key 错误";
       return;
@@ -402,7 +404,7 @@ export async function* streamGrokAgentChatV2(
 
     try {
       const response = await fetch(
-        `${ENV.grokApiUrl || "https://api.x.ai"}/v1/chat/completions`,
+        `${ENV.glmApiUrl || "https://open.bigmodel.cn/api/paas/v4"}/chat/completions`,
         {
           method: "POST",
           headers: {
@@ -410,7 +412,7 @@ export async function* streamGrokAgentChatV2(
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            model: "grok-4-1-fast",
+            model: "glm-4.7",
             messages,
             tools: xaiServerSideTools,
             tool_choice: "auto",
@@ -423,7 +425,10 @@ export async function* streamGrokAgentChatV2(
       const data = await response.json();
       const assistantMessage = data.choices?.[0]?.message;
 
-      if (assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0) {
+      if (
+        assistantMessage?.tool_calls &&
+        assistantMessage.tool_calls.length > 0
+      ) {
         yield `调用 ${assistantMessage.tool_calls.length} 个工具...\n`;
 
         messages.push({
@@ -437,10 +442,9 @@ export async function* streamGrokAgentChatV2(
           const toolArgs = JSON.parse(toolCall.function.arguments);
           yield `📊 ${toolName}...`;
 
-          const result =
-            toolName.startsWith("akshare")
-              ? await executeStockTool(toolName, toolArgs)
-              : "[xAI 已执行]";
+          const result = toolName.startsWith("akshare")
+            ? await executeStockTool(toolName, toolArgs)
+            : "[xAI 已执行]";
 
           messages.push({
             role: "tool",
@@ -458,9 +462,9 @@ export async function* streamGrokAgentChatV2(
   }
 
   // 第二阶段：流式输出最终回答
-  yield "\n\n🧠 Grok 分析结果:\n---\n";
+  yield "\n\n🧠 GLM 分析结果:\n---\n";
 
-  const apiKey = ENV.grokApiKey;
+  const apiKey = ENV.glmApiKey;
   if (/[^\x00-\x7F]/.test(apiKey)) {
     yield "❌ API Key 错误";
     return;
@@ -468,7 +472,7 @@ export async function* streamGrokAgentChatV2(
 
   try {
     const finalResponse = await fetch(
-      `${ENV.grokApiUrl || "https://api.x.ai"}/v1/chat/completions`,
+      `${ENV.glmApiUrl || "https://open.bigmodel.cn/api/paas/v4"}/chat/completions`,
       {
         method: "POST",
         headers: {
@@ -476,7 +480,7 @@ export async function* streamGrokAgentChatV2(
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "grok-4-1-fast",
+          model: "glm-4.7",
           messages,
           stream: true,
           max_tokens: 4000,
@@ -543,8 +547,7 @@ export async function testGrokV2ServerSideTools() {
       stockCode: undefined,
     },
     {
-      message:
-        "用 Python 计算下最近 20 个交易日的胜率，我的买点信号是否靠谱？",
+      message: "用 Python 计算下最近 20 个交易日的胜率，我的买点信号是否靠谱？",
       stockCode: "000001",
     },
   ];

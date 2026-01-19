@@ -249,19 +249,15 @@ export async function getKlineData(
 export async function getTimelineData(code: string, days: number = 1) {
   try {
     const eastmoneyCode = convertToEastmoneyCode(code);
-    const timestamp = Date.now();
-    const callback = `jQuery${Math.random().toString().replace(".", "")}${timestamp}`;
 
-    const url = `https://push2his.eastmoney.com/api/qt/stock/trends2/get`;
+    // 使用非 JSONP 的直接 JSON 接口
+    const url = `https://push2.eastmoney.com/api/qt/stock/trends2/get`;
     const params = {
-      cb: callback,
       secid: eastmoneyCode,
-      ut: "fa5fd1943c7b386f172d6893dbfba10b",
-      fields1: "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13",
+      fields1: "f1,f2,f3,f4,f5,f6,f7,f8",
       fields2: "f51,f52,f53,f54,f55,f56,f57,f58",
       iscr: "0",
-      ndays: String(days), // 支持多日分时
-      _: timestamp,
+      ndays: String(days),
     };
 
     const response = await axios.get(url, {
@@ -269,23 +265,23 @@ export async function getTimelineData(code: string, days: number = 1) {
       headers: HEADERS,
     });
 
-    // 处理JSONP响应
-    let jsonpData = response.data;
-    if (typeof jsonpData === "string") {
-      // 验证JSONP格式，防止XSS攻击
-      if (!jsonpData.match(/^jQuery\d+_\d+\(/)) {
-        throw new Error("Invalid JSONP format");
+    let jsonData = response.data;
+
+    // 处理响应（可能是 JSON 或 JSONP）
+    if (typeof jsonData === "string") {
+      // 尝试移除 JSONP 包装
+      if (jsonData.includes("(")) {
+        jsonData = jsonData.replace(/^[^(]+\(/, "").replace(/\);?$/, "");
       }
-      jsonpData = jsonpData.replace(/^[^(]+\(/, "").replace(/\);?$/, "");
-      jsonpData = JSON.parse(jsonpData);
+      jsonData = JSON.parse(jsonData);
     }
 
     // 如果请求的是1日数据且为空，尝试获取2日数据
     if (
-      (!jsonpData ||
-        !jsonpData.data ||
-        !jsonpData.data.trends ||
-        jsonpData.data.trends.length === 0) &&
+      (!jsonData ||
+        !jsonData.data ||
+        !jsonData.data.trends ||
+        jsonData.data.trends.length === 0) &&
       days === 1
     ) {
       // 非交易时间，获取2日数据并只取最后一天
@@ -307,14 +303,14 @@ export async function getTimelineData(code: string, days: number = 1) {
       throw new Error("分时数据为空");
     }
 
-    if (!jsonpData || !jsonpData.data || !jsonpData.data.trends) {
+    if (!jsonData || !jsonData.data || !jsonData.data.trends) {
       throw new Error("分时数据为空");
     }
 
-    const preClose = jsonpData.data.preClose; // 昨收价
+    const preClose = jsonData.data.preClose; // 昨收价
 
     // 解析分时数据
-    const timeline = jsonpData.data.trends.map((line: string) => {
+    const timeline = jsonData.data.trends.map((line: string) => {
       const parts = line.split(",");
       const price = parseFloat(parts[2]);
       return {

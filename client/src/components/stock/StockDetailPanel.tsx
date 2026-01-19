@@ -489,7 +489,8 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
   const changePercent = quote?.changePercent || 0;
   const isPositive = changePercent > 0;
   const isNegative = changePercent < 0;
-  const displayName = quote?.name || extras?.stock?.name || "加载中...";
+  const rawDisplayName = extras?.stock?.name || quote?.name || "";
+  const displayName = rawDisplayName === stockCode ? "" : rawDisplayName || "加载中...";
   const priceColor = isPositive
     ? "text-[#e74c3c]"
     : isNegative
@@ -503,15 +504,22 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
     if (val < 0) return "text-green-500";
     return "text-muted-foreground";
   };
+  const badgeBaseClass =
+    "inline-flex items-center gap-1 text-xs px-2 py-0.5 " +
+    "rounded-full font-medium border";
 
   return (
     <div className="flex flex-col h-full bg-background text-foreground overflow-hidden">
       {/* 顶部状态栏 - 包含股票名、代码、价格 */}
-      <div className="flex flex-col px-4 py-3 border-b border-border bg-card/50 gap-1">
+      <div className="flex flex-col px-2 py-2 md:px-4 md:py-3 border-b border-border bg-card/50 gap-0.5 md:gap-1 shrink-0">
         {/* 第一行：价格和涨跌幅 */}
-        <div className="flex items-baseline gap-3">
+        <div className="flex items-baseline gap-2 md:gap-3 flex-wrap">
           <span
-            className={`text-5xl font-bold font-mono tracking-tight ${getChangeColor(quote?.change)}`}
+            className={
+              "text-xl md:text-2xl font-bold font-mono tracking-tight " +
+              "tabular-nums " +
+              getChangeColor(quote?.change)
+            }
           >
             {quote?.price ? (
               <ScrollNumber value={quote.price} decimals={2} />
@@ -521,7 +529,11 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
           </span>
           {quote?.change !== undefined && (
             <div
-              className={`flex items-baseline gap-2 text-xl font-medium ${getChangeColor(quote.change)}`}
+              className={
+                "flex items-baseline gap-1 text-sm md:text-base " +
+                "font-medium tabular-nums " +
+                getChangeColor(quote.change)
+              }
             >
               <span>
                 <ScrollNumber
@@ -543,12 +555,12 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
         </div>
 
         {/* 第二行：名称、代码、标签 */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-baseline gap-2">
-            <span className="text-foreground text-xl font-bold tracking-wide">
+        <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+          <div className="flex items-baseline gap-1 md:gap-2">
+            <span className="text-foreground text-base font-bold tracking-wide">
               {displayName}
             </span>
-            <span className="text-muted-foreground text-lg font-mono">
+            <span className="text-muted-foreground text-stock-code font-mono">
               {stockCode}
             </span>
           </div>
@@ -557,12 +569,12 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
             {/* 人气排名标签 */}
             {hotRank && (
               <span
-                className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                className={`${badgeBaseClass} ${
                   hotRank.rank <= 50
-                    ? "bg-red-500/15 text-red-500 border border-red-500/20"
+                    ? "bg-red-500/15 text-red-500 border-red-500/20"
                     : hotRank.rank <= 100
-                      ? "bg-orange-500/15 text-orange-500 border border-orange-500/20"
-                      : "bg-gray-500/15 text-gray-500 border border-gray-500/20"
+                      ? "bg-orange-500/15 text-orange-500 border-orange-500/20"
+                      : "bg-gray-500/15 text-gray-500 border-gray-500/20"
                 }`}
               >
                 🔥 人气#{hotRank.rank}
@@ -582,7 +594,9 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
 
             {/* 雪球排名标签 */}
             {xueqiuRank && (
-              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-500 border border-blue-500/20 font-medium">
+              <span
+                className={`${badgeBaseClass} bg-blue-500/15 text-blue-500 border-blue-500/20`}
+              >
                 ❄️ 雪球#{xueqiuRank.rank}
               </span>
             )}
@@ -591,8 +605,8 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
       </div>
 
       {/* 资金指标 - 紧跟股票价格 */}
-      <div className="px-4 py-2 border-b border-border bg-card/20">
-        <div className="flex flex-wrap gap-x-6 gap-y-1 text-base">
+      <div className="px-2 py-1 border-b border-border bg-card/20 shrink-0">
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
           <DataCellInline
             label="💰 主力净流入"
             value={
@@ -651,8 +665,8 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
       </div>
 
       {/* 基础交易数据 */}
-      <div className="px-4 py-2 border-b border-border">
-        <div className="flex flex-wrap gap-x-6 gap-y-1 text-base">
+      <div className="px-2 py-1 border-b border-border shrink-0">
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
           <DataCellInline
             label="今开"
             value={quote?.open?.toFixed(2)}
@@ -710,19 +724,18 @@ export function StockDetailPanel({ stockCode }: StockDetailPanelProps) {
             onClick={() =>
               setChartType(
                 item.key as
-                  | "timeline"
-                  | "timeline3d"
-                  | "timeline5d"
-                  | "day"
-                  | "week"
-                  | "month"
+                | "timeline"
+                | "timeline3d"
+                | "timeline5d"
+                | "day"
+                | "week"
+                | "month"
               )
             }
-            className={`px-4 py-1.5 text-sm font-medium transition-colors ${
-              chartType === item.key
-                ? "text-foreground border-b-2 border-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+            className={`px-4 py-1.5 text-sm font-medium transition-colors ${chartType === item.key
+              ? "text-foreground border-t-2 border-primary"
+              : "text-muted-foreground hover:text-foreground"
+              }`}
           >
             {item.label}
           </button>
