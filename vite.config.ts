@@ -13,7 +13,7 @@ const plugins = [
   vitePluginManusRuntime(),
 ];
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins,
   resolve: {
     alias: {
@@ -28,6 +28,9 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      external: mode === "production" ? ["**/__dev__/**"] : [],
+    },
   },
   server: {
     host: true,
@@ -37,7 +40,7 @@ export default defineConfig({
       ".manus-asia.computer",
       ".manuscomputer.ai",
       ".manusvm.computer",
-      "localhost",
+      ".localhost",
       "127.0.0.1",
     ],
     fs: {
@@ -45,4 +48,4 @@ export default defineConfig({
       deny: ["**/.*"],
     },
   },
-});
+}));
