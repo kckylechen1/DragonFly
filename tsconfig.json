@@ -13,7 +13,10 @@
     "server/test_*.ts",
     "server/*backtest*.ts",
     "server/ai_agent_*.ts",
-    "test_*.ts"
+    "test_*.ts",
+    "server/experiments/**/*",
+    "server/scripts/**/*",
+    "archives/**/*"
   ],
   "compilerOptions": {
     "incremental": true,
