@@ -68,23 +68,36 @@ export async function getQuoteWithFallback(
     }
   }
 
+  let quote: StockQuoteData | null = null;
+
   // 合并数据：以 iFind 为主，东方财富补充缺失字段
   if (ifindQuote) {
-    return {
+    quote = {
       ...ifindQuote,
       // 如果 iFind 的市值为 null，用东方财富的数据补充
       marketCap: ifindQuote.marketCap ?? eastmoneyQuote?.marketCap ?? null,
-      circulationMarketCap: ifindQuote.circulationMarketCap ?? eastmoneyQuote?.circulationMarketCap ?? null,
+      circulationMarketCap:
+        ifindQuote.circulationMarketCap ??
+        eastmoneyQuote?.circulationMarketCap ??
+        null,
       source: "ifind" as const,
     };
+  } else if (eastmoneyQuote) {
+    // iFind 完全失败，使用东方财富
+    quote = { ...eastmoneyQuote, source: "eastmoney" as const };
   }
 
-  // iFind 完全失败，使用东方财富
-  if (eastmoneyQuote) {
-    return { ...eastmoneyQuote, source: "eastmoney" as const };
+  if (quote && (!quote.name || quote.name.trim() === "")) {
+    try {
+      const akshare = await import("../akshare");
+      const stockInfo = await akshare.getStockInfo(code);
+      quote.name = stockInfo?.name || code;
+    } catch (error) {
+      quote.name = quote.name || code;
+    }
   }
 
-  return null;
+  return quote;
 }
 
 /**

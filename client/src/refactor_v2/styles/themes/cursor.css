@@ -1,0 +1,37 @@
+/* Cursor Theme
+   Cool dark palette inspired by the Cursor editor.
+*/
+[data-theme="cursor"] {
+  /* Backgrounds */
+  --bg-primary: #0d0d0d;
+  --bg-secondary: #161616;
+  --bg-tertiary: #1a1a1a;
+  --bg-elevated: #202020;
+
+  /* Text */
+  --text-primary: #ffffff;
+  --text-secondary: #a3a3a3;
+  --text-muted: #666666;
+
+  /* Panels */
+  --panel-bg: #0d0d0d;
+  --panel-border: #262626;
+  --panel-hover: #1a1a1a;
+
+  /* Accent */
+  --accent-primary: #a855f7;
+  --accent-primary-hover: #9333ea;
+  --accent-primary-muted: rgba(168, 85, 247, 0.2);
+
+  /* Stock Colors */
+  --color-up: #22c55e;
+  --color-down: #ef4444;
+
+  /* Chart */
+  --chart-grid: #262626;
+  --chart-crosshair: #525252;
+
+  /* Dividers */
+  --divider: #262626;
+  --divider-subtle: #1a1a1a;
+}

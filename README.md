@@ -1,137 +1,192 @@
-# Stock Tracker 📈
+# 🐉 DragonFly - A股智能分析平台
 
-A股交易笔记工作台 - 个人交易研究助手
+<p align="center">
+  <strong>专为中国A股市场设计的智能股票分析工具</strong>
+</p>
 
-## 功能特性
-
-### ✅ 已实现
-
-#### 股票追踪
-
-- 🔍 股票搜索和自选股管理
-- 📊 实时行情数据（价格、涨跌幅、成交量）
-- 📈 专业 K 线图（TradingView Lightweight Charts）
-- 🔄 分时/日K/周K/月K 切换
-- 💰 资金指标展示（资金流入、主力净流入、资金排名）
-
-#### AI 分析
-
-- 🤖 AI 聊天助手（流式响应）
-- 💭 深度思考模式（显示思考时间）
-- 📝 按股票分离的聊天历史
-
-#### 界面设计
-
-- 🎨 腾讯自选股风格深色主题
-- 📱 三栏布局（自选股 + K线图区 + AI助手）
-- 🏷️ 股票标签页（多股票快速切换）
-- 📊 市场情绪面板（恐惧贪婪指数、涨跌比）
-- 📉 筹码分布面板（占位）
-
-### 🚧 开发中
-
-- [ ] 筹码分布功能
-- [ ] 资金指标对接真实 API
-- [ ] 市场情绪指标对接
-- [ ] 新闻资讯功能
-- [ ] 北向资金数据
-
-## 技术栈
-
-- **前端**: React + TypeScript + Vite
-- **UI**: Tailwind CSS + shadcn/ui
-- **图表**: TradingView Lightweight Charts
-- **API**: tRPC
-- **数据源**: 东方财富 API
-
-## 快速开始
-
-```bash
-# 安装 Node.js 依赖
-pnpm install
-
-# 安装 Python 依赖（AKTools - 财经数据服务）
-python3 -m venv ~/.aktools-venv
-source ~/.aktools-venv/bin/activate
-pip install aktools
-
-# 启动 AKTools 服务（端口 8081）
-source ~/.aktools-venv/bin/activate && python -m aktools --host 0.0.0.0 --port 8081
-
-# 启动开发服务器（新终端）
-pnpm dev
-
-# 访问
-http://localhost:6888
-```
-
-## 测试
-
-```bash
-# 标准测试（需要网络 + MySQL 可用）
-pnpm -s test
-
-# 离线测试（跳过外部 API + DB 相关用例）
-TEST_OFFLINE=true pnpm -s test
-
-# Dev 脚本类型检查（非阻塞）
-pnpm -s check:dev
-```
-
-### 环境变量
-
-```bash
-# .env (可选)
-AKTOOLS_URL=http://127.0.0.1:8098  # AKTools 服务地址
-```
-
-## 项目结构
-
-```
-stock-tracker/
-├── client/                 # 前端代码
-│   ├── src/
-│   │   ├── components/     # React 组件
-│   │   │   ├── ai/         # AI 聊天相关
-│   │   │   └── stock/      # 股票相关
-│   │   └── pages/          # 页面
-│   └── index.html
-├── server/                 # 后端代码
-│   ├── routers.ts          # tRPC 路由
-│   └── _core/              # 核心服务
-└── todo.md                 # 开发进度
-```
-
-## 界面预览
-
-```
-┌─────────────┬────────────────┬──────────┬──────────┬─────────────┐
-│             │                │          │ 市场情绪 │             │
-│             │   K线图 (60%)  │筹码分布  │- 恐惧贪婪│             │
-│   自选股    │   + 资金指标   │ (20%)    │- 市场温度│   AI 助手   │
-│   列表      │                │          │- 涨跌比  │   620px     │
-│   320px     ├────────────────┴──────────┴──────────┤   100%高度  │
-│             │     新闻/趋势/情绪分析 (35%)         │             │
-└─────────────┴─────────────────────────────────────┴─────────────┘
-```
-
-## 更新日志
-
-### 2026-01-06
-
-- ✨ 完成主页面三栏布局重构
-- ✨ 添加市场情绪面板（恐惧贪婪指数、市场温度、涨跌比）
-- ✨ 添加资金指标行（今日资金、主力净流入、资金排名）
-- ✨ AI 思考模式显示思考时间
-- ✨ 股票标签页功能
-- 🎨 AI 助手面板宽度调整为 620px
-
-### 2026-01-05
-
-- 🎨 切换为腾讯自选股风格深色主题
-- ✨ 集成 AI 流式聊天功能
-- ✨ 实现聊天历史持久化
+<p align="center">
+  <a href="#✨-特性">特性</a> •
+  <a href="#🛠-技术栈">技术栈</a> •
+  <a href="#🚀-快速开始">快速开始</a> •
+  <a href="#📖-文档">文档</a> •
+  <a href="#🤝-贡献">贡献</a>
+</p>
 
 ---
 
-_最后更新：2026-01-06_
+> 🔄 本项目由 [stock-tracker](https://github.com/kckylechen1/stock-tracker) 重构演进而来，采用现代化技术栈和 AI 协作开发模式。
+
+## ✨ 特性
+
+### 📈 智能图表系统
+- **K线图表**: 支持线图/蜡烛图一键切换
+- **多周期支持**: 1D / 5D / 1M / 6M / YTD / 1Y / 5Y / MAX
+- **A股交易时间**: 自动适配 9:30-11:30, 13:00-15:00 交易时段
+- **红涨绿跌**: 符合中国A股市场惯例
+
+### 🎨 多主题系统
+- **Pixel**: 像素风格，复古情怀
+- **Modern**: 现代简约设计
+- **Dark**: 深色护眼模式
+- **Cyberpunk**: 赛博朋克霓虹风
+
+### 🤖 AI 分析助手
+- 集成多种大语言模型 (OpenAI / DeepSeek / Gemini / GLM)
+- 智能股票分析与投资建议
+- 自然语言交互查询
+
+### 📊 多数据源整合
+- **iFinD (同花顺)**: 专业金融数据
+- **AKShare**: 开源量化数据
+- **Eastmoney (东方财富)**: 实时行情数据
+- 自动容错切换，确保数据可用性
+
+### 💼 自选股管理
+- 快速添加/删除自选股
+- 键盘导航支持 (↑↓ 选择, Enter 添加)
+- 实时价格与涨跌幅显示
+
+---
+
+## 🛠 技术栈
+
+### 前端 (Client)
+| 技术 | 用途 |
+|------|------|
+| React 18 | UI 框架 |
+| TypeScript | 类型安全 |
+| Zustand | 状态管理 |
+| React Query | 数据获取与缓存 |
+| lightweight-charts | 高性能图表库 |
+| Tailwind CSS | 样式系统 |
+| Lucide React | 图标库 |
+
+### 后端 (Server)
+| 技术 | 用途 |
+|------|------|
+| Node.js | 运行时 |
+| tRPC | 类型安全 API |
+| Drizzle ORM | 数据库 ORM |
+| SQLite | 本地数据存储 |
+| Express | HTTP 服务器 |
+
+### AI 协作开发
+| Agent | 角色 |
+|-------|------|
+| Antigravity (Gemini) | 项目协调、架构决策 |
+| Codex (OpenAI) | 代码实现、过夜任务 |
+| Amp (Claude) | 代码审查 |
+| GLM / MiniMax | 大批量代码生成 |
+| Grok | 技术调研 |
+
+---
+
+## 🚀 快速开始
+
+### 环境要求
+- Node.js >= 18
+- pnpm >= 8
+- Python 3.9+ (用于 AKShare 数据服务)
+
+### 安装步骤
+
+```bash
+# 1. 克隆仓库
+git clone https://github.com/kckylechen1/DragonFly.git
+cd DragonFly
+
+# 2. 安装依赖
+pnpm install
+
+# 3. 配置环境变量
+cp .env.example .env
+# 编辑 .env 填入必要的 API Keys
+
+# 4. 启动 AKShare 数据服务 (可选，用于增强数据)
+docker-compose up -d
+
+# 5. 启动开发服务器
+pnpm dev
+```
+
+### 访问应用
+启动后访问 http://localhost:6888 (或控制台显示的端口)
+
+---
+
+## 📁 项目结构
+
+```
+DragonFly/
+├── client/                 # 前端应用
+│   └── src/
+│       ├── refactor_v2/    # 新版 UI 组件
+│       ├── components/     # 通用组件
+│       └── pages/          # 页面组件
+├── server/                 # 后端服务
+│   ├── routers/            # tRPC 路由
+│   ├── providers/          # 数据提供者
+│   └── _core/              # 核心模块
+├── shared/                 # 前后端共享类型
+├── docs/                   # 项目文档
+│   ├── architecture/       # 架构设计
+│   ├── ai-collab/          # AI 协作手册
+│   └── api/                # API 文档
+├── .agent/                 # AI Agent 配置
+│   ├── skills/             # Agent 技能库
+│   └── workflows/          # 工作流定义
+├── tasks/                  # 任务管理
+│   └── epics/              # Epic 任务集
+├── scripts/                # 构建脚本
+├── tools/                  # 开发工具
+└── drizzle/                # 数据库迁移
+```
+
+---
+
+## 📖 文档
+
+| 文档 | 说明 |
+|------|------|
+| [架构设计](docs/architecture/DRAGONFLY-REFACTOR.md) | 项目重构设计文档 |
+| [AI 协作手册](docs/ai-collab/AI-COLLAB-PLAYBOOK.md) | 多 Agent 协作规范 |
+| [API 参考](docs/api/) | 后端 API 文档 |
+
+---
+
+## 🔄 从 stock-tracker 的演进
+
+DragonFly 是 stock-tracker 项目的全面重构版本，主要改进包括：
+
+| 方面 | stock-tracker | DragonFly |
+|------|---------------|-----------|
+| UI 架构 | 单文件组件 | 模块化组件系统 |
+| 状态管理 | Props 传递 | Zustand 全局状态 |
+| API 设计 | REST | tRPC 类型安全 |
+| 图表库 | 基础实现 | lightweight-charts |
+| 主题系统 | 无 | 4 套完整主题 |
+| AI 能力 | 基础对话 | 多模型智能分析 |
+| 数据源 | 单一来源 | 多源容错切换 |
+
+---
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+### 开发规范
+- 代码风格: ESLint + Prettier
+- 提交规范: Conventional Commits
+- 类型检查: `pnpm check`
+
+---
+
+## 📄 License
+
+MIT License - 详见 [LICENSE](LICENSE) 文件
+
+---
+
+<p align="center">
+  Made with ❤️ by kckylechen & AI Agents
+</p>

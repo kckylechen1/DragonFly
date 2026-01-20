@@ -163,8 +163,67 @@ export const stocksRouter = router({
     })
     .query(async ({ input }) => {
       try {
-        const period = (input.period || "day") as "day" | "week" | "month";
+        const period = (input.period || "day") as
+          | "day"
+          | "week"
+          | "month"
+          | "minute";
         const limit = input.limit || 60;
+
+        if (period === "minute") {
+          const days = Math.max(1, Math.ceil(limit / 240));
+          let timeline: any[] = [];
+
+          // 数据源1：iFind 分时
+          try {
+            const ifindTimeline = await ifind.getTimelineData(
+              input.code,
+              days
+            );
+            if (ifindTimeline?.timeline?.length) {
+              timeline = ifindTimeline.timeline;
+            }
+          } catch (ifindError: any) {
+            console.warn(
+              "[getKline] iFind minute failed:",
+              ifindError?.message
+            );
+          }
+
+          // 数据源2：Eastmoney 分时
+          if (!timeline.length) {
+            try {
+              const eastmoneyTimeline = await eastmoney.getTimelineData(
+                input.code,
+                days
+              );
+              if (eastmoneyTimeline?.timeline?.length) {
+                timeline = eastmoneyTimeline.timeline;
+              }
+            } catch (eastmoneyError: any) {
+              console.warn(
+                "[getKline] Eastmoney minute failed:",
+                eastmoneyError?.message
+              );
+            }
+          }
+
+          if (!timeline.length) {
+            return [];
+          }
+
+          return timeline.slice(-limit).map((item: any) => {
+            const price = item.price ?? item.avgPrice ?? 0;
+            return {
+              time: item.time,
+              open: price,
+              high: price,
+              low: price,
+              close: price,
+              volume: item.volume ?? 0,
+            };
+          });
+        }
 
         let klines: any[] = [];
 

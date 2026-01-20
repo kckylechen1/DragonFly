@@ -223,3 +223,42 @@
     transform: scale(1);
   }
 }
+
+/* REFACTOR THEME VARIABLES */
+:root {
+  /* Light Theme (Default) */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f3f4f6;
+  --bg-tertiary: #e5e7eb;
+
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+
+  --panel-bg: #ffffff;
+  --panel-border: #e5e7eb;
+
+  --accent-primary: #3b82f6;
+
+  --color-up: #10b981;
+  --color-down: #ef4444;
+}
+
+.dark {
+  /* Perplexity Dark Theme */
+  --bg-primary: #020617;
+  --bg-secondary: #0b1120;
+  --bg-tertiary: #111827;
+
+  --text-primary: #e5e7eb;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+
+  --panel-bg: #020617;
+  --panel-border: #1f2937;
+
+  --accent-primary: #3b82f6;
+
+  --color-up: #10b981;
+  --color-down: #ef4444;
+}

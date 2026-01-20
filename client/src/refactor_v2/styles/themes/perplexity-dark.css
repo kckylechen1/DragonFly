@@ -1,0 +1,37 @@
+/* Perplexity Dark Theme
+   Deep blue-black palette with a tech feel.
+*/
+[data-theme="perplexity-dark"] {
+  /* Backgrounds */
+  --bg-primary: #020617;
+  --bg-secondary: #0b1120;
+  --bg-tertiary: #111827;
+  --bg-elevated: #0f172a;
+
+  /* Text */
+  --text-primary: #e5e7eb;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+
+  /* Panels */
+  --panel-bg: #020617;
+  --panel-border: #1f2937;
+  --panel-hover: #111827;
+
+  /* Accent */
+  --accent-primary: #3b82f6;
+  --accent-primary-hover: #2563eb;
+  --accent-primary-muted: rgba(59, 130, 246, 0.15);
+
+  /* Stock Colors */
+  --color-up: #10b981;
+  --color-down: #ef4444;
+
+  /* Chart */
+  --chart-grid: #1e293b;
+  --chart-crosshair: #475569;
+
+  /* Dividers */
+  --divider: #1f2937;
+  --divider-subtle: #0f172a;
+}

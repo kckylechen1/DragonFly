@@ -4,8 +4,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
+import { ThemeProvider } from "@/refactor_v2/contexts/ThemeContext";
 import App from "./App";
 import { getLoginUrl } from "./const";
+import "@/refactor_v2/styles/tokens.css";
+import "@/refactor_v2/styles/themes/index.css";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -78,7 +81,9 @@ injectAnalyticsScript();
 createRoot(document.getElementById("root")!).render(
   <trpc.Provider client={trpcClient} queryClient={queryClient}>
     <QueryClientProvider client={queryClient}>
-      <App />
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
     </QueryClientProvider>
   </trpc.Provider>
 );

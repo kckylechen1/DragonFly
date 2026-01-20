@@ -1,180 +1,378 @@
 ---
 name: dispatching-parallel-agents
-description: Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies
+description: |
+  Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies.
+  This skill orchestrates multiple AI agents (Codex, GLM, MiniMax, Amp, Grok) to work in parallel,
+  maximizing throughput while avoiding conflicts. Covers task decomposition, agent selection based on
+  capabilities, RALPH loop integration, conflict prevention, and real-world parallel execution examples.
 ---
 
 # Dispatching Parallel Agents
 
-## Overview
-
-When you have multiple unrelated failures (different test files, different subsystems, different bugs), investigating them sequentially wastes time. Each investigation is independent and can happen in parallel.
-
-**Core principle:** Dispatch one agent per independent problem domain. Let them work concurrently.
+Coordinate multiple AI agents to execute tasks simultaneously, maximizing development velocity
+while preventing conflicts. This is the core skill for multi-agent collaboration.
 
 ## When to Use
 
-```dot
-digraph when_to_use {
-    "Multiple failures?" [shape=diamond];
-    "Are they independent?" [shape=diamond];
-    "Single agent investigates all" [shape=box];
-    "One agent per problem domain" [shape=box];
-    "Can they work in parallel?" [shape=diamond];
-    "Sequential agents" [shape=box];
-    "Parallel dispatch" [shape=box];
+- **2+ independent tasks** can be worked on simultaneously
+- **No shared state** between tasks (different files/modules)
+- **Total work > 2 hours** and parallelization is beneficial
+- **Overnight execution** where multiple agents can run unattended
 
-    "Multiple failures?" -> "Are they independent?" [label="yes"];
-    "Are they independent?" -> "Single agent investigates all" [label="no - related"];
-    "Are they independent?" -> "Can they work in parallel?" [label="yes"];
-    "Can they work in parallel?" -> "Parallel dispatch" [label="yes"];
-    "Can they work in parallel?" -> "Sequential agents" [label="no - shared state"];
-}
+## Agent Capability Matrix
+
+### Model Backgrounds & Strengths
+
+| Agent | Model | Background | Best For | Cost | Speed |
+|-------|-------|------------|----------|------|-------|
+| **Antigravity** | Claude Opus 4.5 | Deep reasoning, planning | Architecture, coordination, complex debugging | 💰💰💰 | 🐢 |
+| **Amp** | Claude Sonnet 4.5 | Accuracy, low hallucination | Code review, quality assurance | 💰💰 | 🐇 |
+| **Codex** | GPT-5.2 Codex | Patient execution | Detailed refactoring, overnight tasks, React | 💰💰 | 🐢 |
+| **GLM** | GLM-4.7 | Speed, Chinese, cost | Large code generation, repetitive tasks | 💰 | 🐇🐇 |
+| **MiniMax** | MiniMax | Type-safe, structured | Theme systems, type definitions | 💰 | 🐇 |
+| **Grok** | xAI Grok | Real-time search | Research, API docs, best practices | 💰💰 | 🐇 |
+
+### Performance Benchmarks (2025-2026)
+
+```
+GLM-4.7:
+  - SWE-bench: 73.8%
+  - LiveCodeBench-v6: 84.9% (open-source #1)
+  - Cost: ~15% of Claude
+
+Codex (GPT-5.2):
+  - First-try success: 37%
+  - With retries: 70.2%
+  - Development speedup: 2-3x
+
+Claude Sonnet 4.5:
+  - Accuracy: Highest tier
+  - Hallucination rate: Lowest
+  - Large codebase understanding: Excellent
 ```
 
-**Use when:**
-- 3+ test files failing with different root causes
-- Multiple subsystems broken independently
-- Each problem can be understood without context from others
-- No shared state between investigations
+## RALPH Loop Integration
 
-**Don't use when:**
-- Failures are related (fix one might fix others)
-- Need to understand full system state
-- Agents would interfere with each other
+The RALPH loop (Read → Analyze → Learn → Plan → Hypothesize) integrates with multi-agent workflow:
 
-## The Pattern
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ RALPH LOOP                                                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌──────┐   ┌─────────┐   ┌───────┐   ┌──────┐   ┌────────────┐   │
+│  │ READ │ → │ ANALYZE │ → │ LEARN │ → │ PLAN │ → │ HYPOTHESIZE│   │
+│  └──────┘   └─────────┘   └───────┘   └──────┘   └────────────┘   │
+│      ↑                                                     │       │
+│      └─────────────── Feedback Loop ──────────────────────┘       │
+│                                                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│ MULTI-AGENT DISPATCH PHASE                                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  After PLAN: Antigravity decomposes into parallel tasks             │
+│                                                                     │
+│  ┌────────────────┐   ┌────────────────┐   ┌────────────────┐      │
+│  │ Agent A (Codex)│   │ Agent B (GLM)  │   │ Agent C (Mini) │      │
+│  │ Task Guide A   │   │ Task Guide B   │   │ Task Guide C   │      │
+│  │ Files: A/*     │   │ Files: B/*     │   │ Files: C/*     │      │
+│  └───────┬────────┘   └───────┬────────┘   └───────┬────────┘      │
+│          │                    │                    │                │
+│          └────────────────────┼────────────────────┘                │
+│                               ↓                                     │
+│                    ┌──────────────────┐                             │
+│                    │ Antigravity      │                             │
+│                    │ Reviews & Merges │                             │
+│                    └──────────────────┘                             │
+│                               ↓                                     │
+│                    Back to READ (next iteration)                    │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-### 1. Identify Independent Domains
+## Conflict Prevention Strategies
 
-Group failures by what's broken:
-- File A tests: Tool approval flow
-- File B tests: Batch completion behavior
-- File C tests: Abort functionality
+### 1. File-Level Isolation
 
-Each domain is independent - fixing tool approval doesn't affect abort tests.
+**Principle**: Each agent owns exclusive files/directories.
 
-### 2. Create Focused Agent Tasks
+```
+❌ BAD: Both agents edit same file
+   Agent A: components/Header.tsx (lines 1-50)
+   Agent B: components/Header.tsx (lines 51-100)
+   Result: Merge conflicts guaranteed
 
-Each agent gets:
-- **Specific scope:** One test file or subsystem
-- **Clear goal:** Make these tests pass
-- **Constraints:** Don't change other code
-- **Expected output:** Summary of what you found and fixed
+✅ GOOD: Agents own different files
+   Agent A: components/Header.tsx, api/stocks.ts
+   Agent B: themes/*.ts, stores/theme.store.ts
+   Result: Clean merge
+```
 
-### 3. Dispatch in Parallel
+### 2. Dependency Ordering
+
+**Principle**: Infrastructure before features, types before implementation.
+
+```
+Phase 1 (Foundation) - Must complete first:
+  └── types/theme.ts [GLM]
+  └── api/client.ts [Codex]
+
+Phase 2 (Implementation) - Can parallelize after Phase 1:
+  ├── themes/dark.theme.ts [GLM]
+  ├── themes/pixel.theme.ts [GLM]  
+  ├── api/stocks.ts [Codex]
+  └── api/watchlist.ts [Codex]
+
+Phase 3 (Integration) - After Phase 2:
+  └── components/ThemeSwitcher.tsx [Any]
+```
+
+### 3. Contract-First Development
+
+**Principle**: Define interfaces before implementation.
 
 ```typescript
-// In Claude Code / AI environment
-Task("Fix agent-tool-abort.test.ts failures")
-Task("Fix batch-completion-behavior.test.ts failures")
-Task("Fix tool-approval-race-conditions.test.ts failures")
-// All three run concurrently
+// Define contract FIRST (in shared types file)
+interface Theme {
+  id: string;
+  name: string;
+  colors: ThemeColors;
+}
+
+// Then agents implement independently
+// Agent A: implements getTheme(id) → Theme
+// Agent B: implements <ThemeSwitcher themes={Theme[]} />
 ```
 
-### 4. Review and Integrate
+### 4. Task Boundary Markers
 
-When agents return:
-- Read each summary
-- Verify fixes don't conflict
-- Run full test suite
-- Integrate all changes
-
-## Agent Prompt Structure
-
-Good agent prompts are:
-1. **Focused** - One clear problem domain
-2. **Self-contained** - All context needed to understand the problem
-3. **Specific about output** - What should the agent return?
+Include clear ownership in task guides:
 
 ```markdown
-Fix the 3 failing tests in src/agents/agent-tool-abort.test.ts:
+### Task: Theme Store Implementation
 
-1. "should abort tool with partial output capture" - expects 'interrupted at' in message
-2. "should handle mixed completed and aborted tools" - fast tool aborted instead of completed
-3. "should properly track pendingToolCount" - expects 3 results but gets 0
+**Owner**: MiniMax
+**Files OWNED** (exclusive write):
+  - stores/theme.store.ts
+  - themes/registry.ts
 
-These are timing/race condition issues. Your task:
+**Files READ-ONLY** (for reference):
+  - types/theme.ts
+  - tokens.css
 
-1. Read the test file and understand what each test verifies
-2. Identify root cause - timing issues or actual bugs?
-3. Fix by:
-   - Replacing arbitrary timeouts with event-based waiting
-   - Fixing bugs in abort implementation if found
-   - Adjusting test expectations if testing changed behavior
-
-Do NOT just increase timeouts - find the real issue.
-
-Return: Summary of what you found and what you fixed.
+**Do NOT touch**:
+  - components/* (Codex owns these)
 ```
 
-## Common Mistakes
+## Real-World Example: DragonFly Parallel Execution
 
-**❌ Too broad:** "Fix all the tests" - agent gets lost
-**✅ Specific:** "Fix agent-tool-abort.test.ts" - focused scope
+### Scenario: Codex + MiniMax Working Simultaneously
 
-**❌ No context:** "Fix the race condition" - agent doesn't know where
-**✅ Context:** Paste the error messages and test names
-
-**❌ No constraints:** Agent might refactor everything
-**✅ Constraints:** "Do NOT change production code" or "Fix tests only"
-
-**❌ Vague output:** "Fix it" - you don't know what changed
-**✅ Specific:** "Return summary of root cause and changes"
-
-## When NOT to Use
-
-**Related failures:** Fixing one might fix others - investigate together first
-**Need full context:** Understanding requires seeing entire system
-**Exploratory debugging:** You don't know what's broken yet
-**Shared state:** Agents would interfere (editing same files, using same resources)
-
-## Real Example from Session
-
-**Scenario:** 6 test failures across 3 files after major refactoring
-
-**Failures:**
-- agent-tool-abort.test.ts: 3 failures (timing issues)
-- batch-completion-behavior.test.ts: 2 failures (tools not executing)
-- tool-approval-race-conditions.test.ts: 1 failure (execution count = 0)
-
-**Decision:** Independent domains - abort logic separate from batch completion separate from race conditions
-
-**Dispatch:**
 ```
-Agent 1 → Fix agent-tool-abort.test.ts
-Agent 2 → Fix batch-completion-behavior.test.ts
-Agent 3 → Fix tool-approval-race-conditions.test.ts
+┌──────────────────────────────────────────────────────────────────┐
+│ TIME: 2026-01-20 15:17                                           │
+│ User: "让 Codex 干 UI 优化，让 MiniMax 干主题系统"                 │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────────────────────────┐                             │
+│  │ CODEX: UI-POLISH-COMBINED.md   │                             │
+│  │ ─────────────────────────────── │                             │
+│  │ Owns:                           │                             │
+│  │ - components/LeftPane.tsx       │                             │
+│  │ - components/StockChart.tsx     │                             │
+│  │ - components/RightPane.tsx      │                             │
+│  │ - styles/tokens.css (shadows)   │                             │
+│  │                                 │                             │
+│  │ Tasks:                          │                             │
+│  │ ✅ BF-001: Name display fix     │                             │
+│  │ ✅ UI-001: Sidebar modernize    │                             │
+│  │ ✅ UI-003: Chart controls       │                             │
+│  │ ✅ UI-005: AI input glow        │                             │
+│  └─────────────────────────────────┘                             │
+│                  ↓                                                │
+│             (Running ~2.5h)                                       │
+│                  ↓                                                │
+│  ┌─────────────────────────────────┐                             │
+│  │ MINIMAX: GLM-P1-THEME-GUIDE.md │                             │
+│  │ ─────────────────────────────── │                             │
+│  │ Owns:                           │                             │
+│  │ - types/theme.ts                │                             │
+│  │ - themes/*.theme.ts             │                             │
+│  │ - themes/registry.ts            │                             │
+│  │ - stores/theme.store.ts         │                             │
+│  │ - hooks/useTheme.ts             │                             │
+│  │                                 │                             │
+│  │ Tasks:                          │                             │
+│  │ ✅ G-001: Theme types           │                             │
+│  │ ✅ G-002-005: 4 themes          │                             │
+│  │ ✅ G-008: Zustand store         │                             │
+│  │ ✅ G-010: ThemeSwitcher         │                             │
+│  └─────────────────────────────────┘                             │
+│                  ↓                                                │
+│             (Running ~2.5h)                                       │
+│                  ↓                                                │
+├──────────────────────────────────────────────────────────────────┤
+│ TIME: 2026-01-20 19:17 (4 hours later)                           │
+│                                                                  │
+│ RESULT: Both complete, pnpm check passes ✅                      │
+│         No merge conflicts                                       │
+│         4 themes working + UI improvements                       │
+│                                                                  │
+│ NEXT: Antigravity reviews → Creates Round 2 fixes               │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-**Results:**
-- Agent 1: Replaced timeouts with event-based waiting
-- Agent 2: Fixed event structure bug (threadId in wrong place)
-- Agent 3: Added wait for async tool execution to complete
+### Post-Merge Review Findings
 
-**Integration:** All fixes independent, no conflicts, full suite green
+After parallel execution, Antigravity reviews and creates new tasks:
 
-**Time saved:** 3 problems solved in parallel vs sequentially
+```markdown
+## Review Findings → Round 2 Tasks
 
-## Key Benefits
+| Issue Found | New Task | Assignee |
+|-------------|----------|----------|
+| Search dropdown behavior | FIX-001: Keyboard navigation | Codex |
+| Button position blocks price | FIX-002: Move to left toolbar | Codex |
+| Period buttons are mock | FIX-003: Connect to backend | Codex |
+| Cyberpunk theme glitch | FIX-005: Border rendering | MiniMax |
+| Dark theme input colors | FIX-006: Use CSS variables | Codex |
+```
 
-1. **Parallelization** - Multiple investigations happen simultaneously
-2. **Focus** - Each agent has narrow scope, less context to track
-3. **Independence** - Agents don't interfere with each other
-4. **Speed** - 3 problems solved in time of 1
+## Task Guide Template for Parallel Execution
+
+```markdown
+# [Task Group Name]
+
+> **Executor**: Codex / GLM / MiniMax
+> **Estimated Time**: X hours
+> **Parallel Group**: A / B / C  ← Indicates parallel execution group
+
+---
+
+## ⚠️ Ownership Declaration
+
+### Files I OWN (exclusive write access):
+- `path/to/file1.ts`
+- `path/to/file2.tsx`
+- `path/to/directory/*`
+
+### Files I READ (no modifications):
+- `types/*.ts`
+- `styles/tokens.css`
+
+### Files FORBIDDEN (another agent owns):
+- `themes/*` (MiniMax owns)
+- `api/*` (Codex owns)
+
+---
+
+## Tasks
+
+### T-001: First Task
+...
+
+---
 
 ## Verification
 
-After agents return:
-1. **Review each summary** - Understand what changed
-2. **Check for conflicts** - Did agents edit same code?
-3. **Run full suite** - Verify all fixes work together
-4. **Spot check** - Agents can make systematic errors
+\`\`\`bash
+pnpm check  # Type safety
+pnpm dev    # Visual check
+\`\`\`
 
-## Real-World Impact
+## Problem Log
 
-From debugging session (2025-10-03):
-- 6 failures across 3 files
-- 3 agents dispatched in parallel
-- All investigations completed concurrently
-- All fixes integrated successfully
-- Zero conflicts between agent changes
+If blocked, document here immediately:
+- [x] Problem: ...
+- [x] Workaround: ...
+- [ ] Needs human decision: ...
+```
+
+## Dispatch Decision Tree
+
+```
+                    ┌─────────────────┐
+                    │  New Task Set   │
+                    └────────┬────────┘
+                             │
+                    ┌────────▼────────┐
+                    │ Can parallelize? │
+                    └────────┬────────┘
+                             │
+            ┌────────────────┼────────────────┐
+            │                │                │
+           YES              DEPENDS           NO
+            │                │                │
+  ┌─────────▼─────────┐     │       ┌────────▼────────┐
+  │ Check file overlap │     │       │ Sequential exec │
+  └─────────┬─────────┘     │       │ (use best agent)│
+            │               │       └─────────────────┘
+    ┌───────┴───────┐       │
+    │               │       │
+   NONE          OVERLAP    │
+    │               │       │
+    ▼               ▼       ▼
+┌───────────┐  ┌───────────┐  ┌───────────┐
+│ Dispatch  │  │ Split by  │  │ Phase into│
+│ to agents │  │ files/dirs│  │ sequential│
+└───────────┘  └───────────┘  └───────────┘
+```
+
+## Best Practices
+
+1. **Always declare file ownership** in task guides
+2. **Types/interfaces first** to establish contracts
+3. **No shared mutable state** between parallel agents
+4. **Batch reviews** after parallel work completes
+5. **Quick iteration cycles** - don't let issues accumulate
+6. **Visual verification** with agent-browser for UI work
+7. **pnpm check gate** - mandatory before considering done
+8. **Problem logging** - agents must document blockers immediately
+
+## Anti-Patterns to Avoid
+
+```
+❌ Two agents editing same component
+❌ Agent A depends on Agent B's in-progress work
+❌ No ownership declaration in task guides
+❌ Skipping type definitions before implementation
+❌ Long parallel runs without checkpoints
+❌ No verification commands in task guides
+```
+
+## Communication Templates
+
+### Dispatching to Agent
+
+```
+请阅读并执行 tasks/epics/{epic}/codex/TASK-GUIDE.md
+
+这是与 {other-agent} 并行执行的任务。
+你负责的文件: {list}
+禁止修改: {other-agent's files}
+```
+
+### Agent Status Report
+
+```markdown
+## Status: [Agent Name]
+
+### Completed
+- ✅ T-001: Description
+- ✅ T-002: Description
+
+### In Progress
+- 🔄 T-003: Description (eta: 30min)
+
+### Blocked
+- ⚠️ T-004: Need backend API for X
+
+### Files Modified
+- `path/to/file1.ts` (new)
+- `path/to/file2.tsx` (modified)
+
+### Verification
+\`\`\`
+pnpm check → ✅ Pass
+\`\`\`
+```

@@ -31,6 +31,12 @@
 
 ## 📋 下周计划 (P1)
 
+### Frontend Refactor Phase 1
+
+- [x] T-001 类型与常量完成（`pnpm check` 仍被 chart.tsx 错误阻塞）
+- [x] T-002 布局/AI store actions 完成（`pnpm check` 仍被 chart.tsx、Home.tsx 阻塞）
+- [x] T-003～T-015 完成（`pnpm check` 仍被 chart.tsx 阻塞）
+
 ### UI 三栏布局改版
 
 - [ ] **左栏**: AI 对话区 + 快捷工具栏 + 趋势快览

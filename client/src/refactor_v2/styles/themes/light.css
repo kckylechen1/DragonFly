@@ -1,0 +1,55 @@
+/* Light Theme
+   Crisp light palette for high contrast.
+*/
+[data-theme="light"] {
+  /* Backgrounds */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+  --bg-elevated: #ffffff;
+
+  /* Text */
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+  --text-inverted: #ffffff;
+
+  /* Panels */
+  --panel-bg: #ffffff;
+  --panel-border: #e5e7eb;
+  --panel-hover: #f3f4f6;
+
+  /* Accent */
+  --accent-primary: #2563eb;
+  --accent-primary-hover: #1d4ed8;
+  --accent-primary-muted: rgba(37, 99, 235, 0.1);
+
+  /* Stock Colors */
+  --color-up: #059669;
+  --color-up-bg: rgba(5, 150, 105, 0.1);
+  --color-down: #dc2626;
+  --color-down-bg: rgba(220, 38, 38, 0.1);
+
+  /* Interactive States */
+  --focus-ring: rgba(37, 99, 235, 0.5);
+  --hover-overlay: rgba(0, 0, 0, 0.05);
+  --active-overlay: rgba(0, 0, 0, 0.1);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+
+  /* Chart */
+  --chart-grid: #e5e7eb;
+  --chart-crosshair: #9ca3af;
+
+  /* Dividers */
+  --divider: #e5e7eb;
+  --divider-subtle: #f3f4f6;
+
+  /* Scrollbar */
+  --scrollbar-track: #f9fafb;
+  --scrollbar-thumb: #d1d5db;
+  --scrollbar-thumb-hover: #9ca3af;
+}

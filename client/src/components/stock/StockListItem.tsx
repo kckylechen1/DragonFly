@@ -197,7 +197,7 @@ export function StockListItem({
             `}
       onClick={onClick}
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2">
         {/* 左侧：名称和代码 */}
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium text-foreground truncate">{name}</div>
@@ -216,7 +216,7 @@ export function StockListItem({
         </div>
 
         {/* 中间：迷你走势图 */}
-        <div className="w-16 shrink-0 flex justify-center px-1">
+        <div className="w-12 shrink-0 flex justify-center">
           {sparklineData.length > 5 ? (
             <MiniSparkline
               data={sparklineData}
@@ -229,7 +229,7 @@ export function StockListItem({
         </div>
 
         {/* 右侧：只显示涨跌幅徽章 */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={e => {
               e.stopPropagation();
