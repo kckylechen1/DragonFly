@@ -12,11 +12,13 @@ export interface AIMessage {
 export interface AIChatState {
   messages: AIMessage[];
   isLoading: boolean;
+  error: string | null;
 }
 
 export interface AIChatActions {
   addMessage: (message: Omit<AIMessage, "id" | "createdAt">) => void;
   setIsLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
   clearMessages: () => void;
 }
 

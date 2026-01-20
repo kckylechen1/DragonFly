@@ -6,7 +6,7 @@ import {
 } from "@/refactor_v2/stores/aiChat.store";
 
 export const AIChatPanel: React.FC = () => {
-  const { messages, clearMessages } = useAIChatStore();
+  const { messages, isLoading, error, clearMessages } = useAIChatStore();
   const { close } = useAIPanelControl();
 
   return (
@@ -24,12 +24,12 @@ export const AIChatPanel: React.FC = () => {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 ? (
+        {messages.length === 0 && !isLoading ? (
           <p className="text-center text-[var(--text-muted)] py-8">
             开始提问以获取 AI 分析...
           </p>
         ) : (
-          messages.map((msg) => (
+          messages.map(msg => (
             <div
               key={msg.id}
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
@@ -59,6 +59,40 @@ export const AIChatPanel: React.FC = () => {
               </div>
             </div>
           ))
+        )}
+
+        {/* Loading state */}
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="bg-[var(--bg-secondary)] px-4 py-3 rounded-lg max-w-[80%]">
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1">
+                  <span
+                    className="w-2 h-2 bg-[var(--text-secondary)] rounded-full animate-bounce"
+                    style={{ animationDelay: "0ms" }}
+                  />
+                  <span
+                    className="w-2 h-2 bg-[var(--text-secondary)] rounded-full animate-bounce"
+                    style={{ animationDelay: "150ms" }}
+                  />
+                  <span
+                    className="w-2 h-2 bg-[var(--text-secondary)] rounded-full animate-bounce"
+                    style={{ animationDelay: "300ms" }}
+                  />
+                </div>
+                <span className="text-[var(--text-secondary)] text-sm">
+                  AI 正在思考...
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error message */}
+        {error && (
+          <div className="text-center py-2">
+            <span className="text-red-400 text-sm">{error}</span>
+          </div>
         )}
       </div>
 

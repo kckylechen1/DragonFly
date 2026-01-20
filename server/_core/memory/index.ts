@@ -3,3 +3,5 @@
  */
 
 export * from "./memory-store";
+export * from "./simplemem.types";
+export * from "./analysis-memory-manager";

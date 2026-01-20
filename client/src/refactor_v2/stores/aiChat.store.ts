@@ -8,6 +8,7 @@ export const useAIChatStore = create<AIChatStore>()(
     set => ({
       messages: [],
       isLoading: false,
+      error: null,
 
       addMessage: message =>
         set(state => ({
@@ -22,6 +23,8 @@ export const useAIChatStore = create<AIChatStore>()(
         })),
 
       setIsLoading: loading => set({ isLoading: loading }),
+
+      setError: error => set({ error }),
 
       clearMessages: () => set({ messages: [] }),
     }),

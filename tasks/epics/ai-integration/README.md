@@ -1,18 +1,24 @@
-# 🎯 Epic: AI Agent 前后端集成 + 多模型调度
+# 🎯 Epic: AI Agent 前后端集成 + 多模型调度 + SimpleMem骨架
 
 > **状态**: ⏳ 进行中  
 > **创建时间**: 2026-01-20 21:36  
-> **执行时间**: 过夜 (8-10小时)
+> **更新时间**: 2026-01-20 22:00  
+> **执行时间**: 过夜 (8小时)  
+> **执行 Agent**: Codex + GLM
 
 ---
 
 ## 📝 简述
 
-将 refactor_v2 前端连接真正的 SmartAgent 后端，实现多 AI 模型协同工作。包括：
+将 refactor_v2 前端连接真正的 SmartAgent 后端，实现多 AI 模型协同工作，并建立 SimpleMem 记忆系统和 6 步分析框架的骨架。
+
+包括：
 - 前端 AI 输入框连接真实 API
 - 流式响应 (看到 AI "打字")
 - TODO 进度显示
 - 多模型路由 (GLM/Grok/Qwen/DeepSeek)
+- SimpleMem 类型定义和骨架
+- 6 步分析框架骨架
 
 ---
 
@@ -23,6 +29,8 @@
 - [ ] 流式响应 - 看到 AI "打字" 效果
 - [ ] TODO 进度 - 看到工具调用步骤
 - [ ] 多模型路由 - 不同任务用不同模型
+- [ ] SimpleMem 类型定义完成
+- [ ] StockAnalysisFramework 6步骨架完成
 - [ ] `pnpm check` 通过
 
 ---
@@ -31,37 +39,46 @@
 
 | 任务 | Agent | 描述 | Phase |
 |------|-------|------|-------|
+| CDX-000 | 🟢 Codex | SSE 契约定义 (shared/types/stream.ts) | P0 |
 | GLM-001 | 🔵 GLM | FloatingAIChatInput 连接真实 API | P1 |
 | GLM-002 | 🔵 GLM | AIChatPanel 加载状态和错误处理 | P1 |
-| GLM-003 | 🔵 GLM | Orchestrator 模型选择增强 | P4 |
-| CDX-001 | 🟢 Codex | useAIStream hook 实现 | P2 |
-| CDX-002 | 🟢 Codex | 后端 SSE 流式端点 | P2 |
-| CDX-003 | 🟢 Codex | 多模型路由系统 model-router.ts | P3 |
-| CDX-004 | 🟢 Codex | 集成多模型到 llm.ts | P3 |
+| CDX-001 | 🟢 Codex | useAIStream hook 实现 | P1 |
+| CDX-002 | 🟢 Codex | 后端 SSE 流式端点 | P1 |
+| CDX-003 | 🟢 Codex | 多模型路由系统 model-router.ts | P2 |
+| CDX-004 | 🟢 Codex | 集成多模型到 llm.ts | P2 |
+| GLM-003 | 🔵 GLM | Orchestrator 模型选择增强 | P3 |
+| CDX-005 | 🟢 Codex | SimpleMem 类型定义 | P4 |
+| CDX-006 | 🟢 Codex | AnalysisMemoryManager 骨架 | P4 |
+| CDX-007 | 🟢 Codex | 用户画像系统 (UserProfile + ProfileManager) | P4 |
+| GLM-004 | 🔵 GLM | StockAnalysisFramework 6步骨架 | P4 |
 
 ---
 
 ## 🔄 执行顺序
 
 ```
-Phase 1 (GLM) ──────────────────────────────────────────────┐
-│  GLM-001: FloatingAIChatInput 连接 API                     │
-│  GLM-002: AIChatPanel 加载状态                             │
+Phase 0 (Codex 先行) ───────────────────────────────────────┐
+│  CDX-000: SSE 契约定义 (shared/types/stream.ts)            │
+└───────────────────────────────────────────────────────────┘
+                              ↓
+Phase 1 (并行执行) ─────────────────────────────────────────┐
+│  🟢 Codex: CDX-001 useAIStream + CDX-002 SSE 端点          │
+│  🔵 GLM:   GLM-001 前端连接 + GLM-002 加载状态             │
 └───────────────────────────────────────────────────────────┘
                               ↓
 Phase 2 (Codex) ────────────────────────────────────────────┐
-│  CDX-001: useAIStream hook                                 │
-│  CDX-002: 后端 SSE 端点                                     │
-└───────────────────────────────────────────────────────────┘
-                              ↓
-Phase 3 (Codex) ────────────────────────────────────────────┐
 │  CDX-003: model-router.ts                                  │
 │  CDX-004: llm.ts 集成                                      │
 └───────────────────────────────────────────────────────────┘
                               ↓
-Phase 4 (GLM) ──────────────────────────────────────────────┐
+Phase 3 (GLM) ──────────────────────────────────────────────┐
 │  GLM-003: Orchestrator 模型选择                            │
 └───────────────────────────────────────────────────────────┘
+                              ↓
+Phase 4 (并行执行 - 骨架) ──────────────────────────────────┐
+│  🟢 Codex: CDX-005 SimpleMem + CDX-006 Manager + CDX-007 用户画像 │
+│  🔵 GLM:   GLM-004 StockAnalysisFramework 6步骨架                  │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ---

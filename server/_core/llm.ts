@@ -1,4 +1,9 @@
 import { ENV } from "./env";
+import {
+  invokeModel as invokeModelFromRouter,
+  selectModel,
+  type ModelPreference,
+} from "./model-router";
 
 export type Role = "system" | "user" | "assistant" | "tool" | "function";
 
@@ -72,6 +77,7 @@ export type InvokeParams = {
   responseFormat?: ResponseFormat;
   response_format?: ResponseFormat;
   useThinking?: boolean;
+  preferredModel?: ModelPreference;
 };
 
 export type ToolCall = {
@@ -272,6 +278,49 @@ const normalizeResponseFormat = ({
 };
 
 export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
+  if (params.preferredModel) {
+    const model = selectModel(params.preferredModel);
+    console.log(`[LLM] Using model router: ${model.name}`);
+
+    const toPlainContent = (content: MessageContent | MessageContent[]) => {
+      if (typeof content === "string") return content;
+      const parts = Array.isArray(content) ? content : [content];
+      return parts
+        .map(part => (typeof part === "string" ? part : JSON.stringify(part)))
+        .join("\n");
+    };
+
+    const messages = params.messages.map(message => ({
+      role: (message.role === "function"
+        ? "tool"
+        : message.role) as "system" | "user" | "assistant" | "tool",
+      content: toPlainContent(message.content),
+      name: message.name,
+      tool_call_id: message.tool_call_id,
+    }));
+
+    const response = await invokeModelFromRouter(model, messages, {
+      maxTokens: params.maxTokens || params.max_tokens,
+    });
+
+    return {
+      id: `mr-${Date.now()}`,
+      created: Math.floor(Date.now() / 1000),
+      model: response.model,
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: "assistant",
+            content: response.content || "",
+          },
+          finish_reason: "stop",
+        },
+      ],
+      usage: response.usage,
+    };
+  }
+
   assertApiKey();
 
   const {

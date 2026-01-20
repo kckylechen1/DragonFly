@@ -7,6 +7,8 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { createSmartAgent } from "./agent";
+import type { StreamEvent } from "@shared/stream";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -35,6 +37,141 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+
+  // SSE AI stream endpoint (GET)
+  app.get("/api/ai/stream", async (req, res) => {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.flushHeaders();
+
+    const getQueryString = (value: unknown): string | undefined => {
+      if (typeof value === "string") return value;
+      if (Array.isArray(value)) {
+        const first = value[0];
+        return typeof first === "string" ? first : undefined;
+      }
+      return undefined;
+    };
+
+    const message = getQueryString(req.query.message);
+    const sessionId = getQueryString(req.query.sessionId);
+    const stockCode = getQueryString(req.query.stockCode);
+    const useThinkingValue = getQueryString(req.query.useThinking);
+    const useThinking = useThinkingValue === "true";
+
+    const sendEvent = (event: StreamEvent) => {
+      res.write(`data: ${JSON.stringify(event)}\n\n`);
+    };
+
+    if (!message || typeof message !== "string") {
+      sendEvent({ type: "error", data: "Missing message parameter" });
+      res.end();
+      return;
+    }
+
+    const keepAlive = setInterval(() => {
+      res.write(": ping\n\n");
+    }, 15000);
+
+    let closed = false;
+    req.on("close", () => {
+      closed = true;
+    });
+
+    const agent = createSmartAgent({
+      sessionId,
+      stockCode,
+      thinkHard: useThinking,
+    });
+
+    const normalizeToolArgs = (args: unknown) => {
+      if (!args) return undefined;
+      if (typeof args === "object") return args as Record<string, unknown>;
+      if (typeof args !== "string") return undefined;
+      try {
+        return JSON.parse(args) as Record<string, unknown>;
+      } catch {
+        return undefined;
+      }
+    };
+
+    try {
+      for await (const event of agent.stream(message)) {
+        if (closed) break;
+
+        if (
+          event.type === "thinking" ||
+          event.type === "content" ||
+          event.type === "error"
+        ) {
+          sendEvent({ type: event.type, data: event.data as string });
+          continue;
+        }
+
+        if (event.type === "tool_call") {
+          const toolCallId = event.data?.toolCallId ?? event.data?.id;
+          const name = event.data?.name;
+          if (toolCallId && name) {
+            sendEvent({
+              type: "tool_call",
+              data: {
+                toolCallId,
+                name,
+                args: normalizeToolArgs(event.data?.args),
+              },
+            });
+          }
+          continue;
+        }
+
+        if (event.type === "tool_result") {
+          const toolCallId = event.data?.toolCallId ?? event.data?.id;
+          const name = event.data?.name;
+          if (toolCallId && name) {
+            sendEvent({
+              type: "tool_result",
+              data: {
+                toolCallId,
+                name,
+                ok: Boolean(event.data?.ok),
+                result:
+                  typeof event.data?.result === "string"
+                    ? event.data.result
+                    : undefined,
+                error:
+                  typeof event.data?.error === "string"
+                    ? event.data.error
+                    : undefined,
+                skipped: Boolean(event.data?.skipped),
+              },
+            });
+          }
+          continue;
+        }
+      }
+
+      if (!closed) {
+        sendEvent({
+          type: "done",
+          data: { sessionId: agent.getSessionId() },
+        });
+      }
+    } catch (error) {
+      if (!closed) {
+        sendEvent({
+          type: "error",
+          data: error instanceof Error ? error.message : "Stream failed",
+        });
+      }
+    } finally {
+      clearInterval(keepAlive);
+      agent.cleanup();
+      res.end();
+    }
+  });
 
   // 流式 AI 聊天端点 - 使用 SmartAgent 新架构
   app.post("/api/ai/stream", async (req, res) => {
