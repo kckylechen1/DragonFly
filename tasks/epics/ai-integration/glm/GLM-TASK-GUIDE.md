@@ -21,6 +21,7 @@
 ## 📁 文件所有权声明
 
 ### ✅ 本任务拥有 (可修改)
+
 - `client/src/refactor_v2/components/FloatingAIChatInput.tsx`
 - `client/src/refactor_v2/components/AIChatPanel.tsx`
 - `client/src/refactor_v2/stores/aiChat.store.ts`
@@ -29,11 +30,13 @@
 - `server/_core/analysis/index.ts` (新建)
 
 ### 🔒 只读参考 (不要修改)
+
 - `client/src/refactor_v2/api/ai.ts`
 - `client/src/refactor_v2/api/client.ts`
 - `shared/types/stream.ts` (Codex 创建)
 
 ### 🚫 禁止触碰 (Codex 负责)
+
 - `client/src/refactor_v2/api/useAIStream.ts`
 - `client/src/refactor_v2/api/index.ts`
 - `server/routers/ai.ts`
@@ -53,6 +56,7 @@
 **Step 1: 理解现状**
 
 读取当前文件:
+
 ```bash
 cat client/src/refactor_v2/components/FloatingAIChatInput.tsx
 ```
@@ -62,6 +66,7 @@ cat client/src/refactor_v2/components/FloatingAIChatInput.tsx
 **Step 2: 导入 API Hook**
 
 在文件顶部添加:
+
 ```typescript
 import { useSendMessage } from "@/refactor_v2/api";
 ```
@@ -121,6 +126,7 @@ const handleSend = async () => {
 ```
 
 **Step 5: 验证**
+
 ```bash
 pnpm check
 ```
@@ -134,6 +140,7 @@ pnpm check
 **Step 1: 修改 aiChat.store.ts**
 
 读取现有 store:
+
 ```bash
 cat client/src/refactor_v2/stores/aiChat.store.ts
 ```
@@ -145,7 +152,7 @@ interface AIChatStore {
   // 现有字段
   messages: Message[];
   isOpen: boolean;
-  
+
   // 新增字段
   isLoading: boolean;
   error: string | null;
@@ -162,7 +169,7 @@ interface AIChatStore {
   setError: (error: string | null) => void;
 }
 
-export const useAIChatStore = create<AIChatStore>((set) => ({
+export const useAIChatStore = create<AIChatStore>(set => ({
   // 现有状态
   messages: [],
   isOpen: false,
@@ -172,24 +179,25 @@ export const useAIChatStore = create<AIChatStore>((set) => ({
   error: null,
 
   // 现有方法保持不变
-  addMessage: (msg) =>
-    set((state) => ({
+  addMessage: msg =>
+    set(state => ({
       messages: [...state.messages, { ...msg, id: `msg_${Date.now()}` }],
     })),
   clearMessages: () => set({ messages: [] }),
   open: () => set({ isOpen: true }),
   close: () => set({ isOpen: false }),
-  toggle: () => set((state) => ({ isOpen: !state.isOpen })),
+  toggle: () => set(state => ({ isOpen: !state.isOpen })),
 
   // 新增方法
-  setLoading: (loading) => set({ isLoading: loading }),
-  setError: (error) => set({ error }),
+  setLoading: loading => set({ isLoading: loading }),
+  setError: error => set({ error }),
 }));
 ```
 
 **Step 2: 修改 AIChatPanel.tsx 显示加载状态**
 
 读取现有文件:
+
 ```bash
 cat client/src/refactor_v2/components/AIChatPanel.tsx
 ```
@@ -231,13 +239,14 @@ return (
         </div>
       )}
     </div>
-    
+
     {/* 其他内容 */}
   </div>
 );
 ```
 
 **Step 3: 验证**
+
 ```bash
 pnpm check
 ```
@@ -249,7 +258,7 @@ pnpm check
 **目标**: 让 Orchestrator 为不同子 Agent 选择合适的模型
 
 > ⚠️ 此任务依赖 Codex 完成 CDX-003 (model-router.ts)
-> 
+>
 > 如果 `server/_core/model-router.ts` 不存在，跳过此任务并在阻塞区记录
 
 **Step 1: 检查依赖**
@@ -280,33 +289,33 @@ private getModelPreferenceForAgent(agentType: string): ModelPreference {
   switch (agentType) {
     case "research":
       // 调研任务用 Grok (擅长实时搜索)
-      return { 
-        provider: "grok", 
+      return {
+        provider: "grok",
         capabilities: ["realtime_search", "research"],
-        reason: "实时搜索能力" 
+        reason: "实时搜索能力"
       };
-    
+
     case "analysis":
       // 分析任务用 GLM (便宜快速)
-      return { 
-        provider: "glm", 
+      return {
+        provider: "glm",
         capabilities: ["chinese", "fast"],
-        reason: "高性价比" 
+        reason: "高性价比"
       };
-    
+
     case "backtest":
       // 回测任务用 DeepSeek (擅长推理)
-      return { 
-        provider: "deepseek", 
+      return {
+        provider: "deepseek",
         capabilities: ["reasoning", "math"],
-        reason: "强推理能力" 
+        reason: "强推理能力"
       };
-    
+
     default:
       // 默认用便宜的
-      return { 
+      return {
         preferCheap: true,
-        reason: "默认选择" 
+        reason: "默认选择"
       };
   }
 }
@@ -321,14 +330,15 @@ private getModelPreferenceForAgent(agentType: string): ModelPreference {
 async executeTask(task: Task): Promise<TaskResult> {
   const modelPreference = this.getModelPreferenceForAgent(task.type);
   const model = selectModel(modelPreference);
-  
+
   console.log(`[Orchestrator] 任务 ${task.type} 使用模型: ${model.name}`);
-  
+
   // 后续执行逻辑...
 }
 ```
 
 **Step 5: 验证**
+
 ```bash
 pnpm check
 ```
@@ -348,7 +358,7 @@ pnpm check
 ```typescript
 /**
  * StockAnalysisFramework - 6步证券分析框架
- * 
+ *
  * 骨架实现，定义完整的分析流程接口
  * 当前版本：仅定义接口和空方法，不改变现有行为
  */
@@ -504,7 +514,7 @@ export class StockAnalysisFramework {
   ): Promise<ParsedInput> {
     // TODO: 实现解析逻辑
     console.log("[Framework] Step 1: 解析用户输入");
-    
+
     return {
       stocks: this.extractStockCodes(userMessage),
       queryType: "analysis",
@@ -524,7 +534,7 @@ export class StockAnalysisFramework {
   ): Promise<MarketReview> {
     // TODO: 调用工具获取实时数据
     console.log("[Framework] Step 2: 行情复盘", stocks);
-    
+
     return {
       currentPrices: {},
       priceChanges: [],
@@ -544,7 +554,7 @@ export class StockAnalysisFramework {
   ): Promise<AnalysisResult> {
     // TODO: 实现多维度分析
     console.log("[Framework] Step 3: 多维度分析", stocks);
-    
+
     return {
       technical: [],
       funding: [],
@@ -566,7 +576,7 @@ export class StockAnalysisFramework {
   ): Promise<RiskAssessment> {
     // TODO: 实现风险评估
     console.log("[Framework] Step 4: 风险评估", stocks);
-    
+
     return {
       stockRisks: [],
       portfolioRisk: {
@@ -595,7 +605,7 @@ export class StockAnalysisFramework {
   ): Promise<OperationalAdvice> {
     // TODO: 实现建议生成
     console.log("[Framework] Step 5: 生成建议", stocks);
-    
+
     return {};
   }
 
@@ -614,7 +624,7 @@ export class StockAnalysisFramework {
   ): Promise<PersonalizedOutput> {
     // TODO: 实现个性化调整
     console.log("[Framework] Step 6: 个性化调整");
-    
+
     return {
       baseAdvice: advice,
       personalizedEvaluation: {
@@ -639,13 +649,34 @@ export class StockAnalysisFramework {
   ): Promise<PersonalizedOutput> {
     const step1 = await this.step1_parseUserInput(userMessage, context);
     const step2 = await this.step2_reviewMarketStatus(step1.stocks, portfolio);
-    const step3 = await this.step3_multidimensionalAnalysis(step1.stocks, step2, userProfile);
-    const step4 = await this.step4_riskRewardAssessment(step1.stocks, step3, portfolio, mindset);
-    const step5 = await this.step5_generateOperationalAdvice(step1.stocks, step4, portfolio, step3, userProfile);
-    const step6 = await this.step6_personalizedQAAndAdjustment(
-      userMessage, step5, portfolio, mindset, userProfile, step3, context
+    const step3 = await this.step3_multidimensionalAnalysis(
+      step1.stocks,
+      step2,
+      userProfile
     );
-    
+    const step4 = await this.step4_riskRewardAssessment(
+      step1.stocks,
+      step3,
+      portfolio,
+      mindset
+    );
+    const step5 = await this.step5_generateOperationalAdvice(
+      step1.stocks,
+      step4,
+      portfolio,
+      step3,
+      userProfile
+    );
+    const step6 = await this.step6_personalizedQAAndAdjustment(
+      userMessage,
+      step5,
+      portfolio,
+      mindset,
+      userProfile,
+      step3,
+      context
+    );
+
     return step6;
   }
 
@@ -654,11 +685,11 @@ export class StockAnalysisFramework {
   private extractStockCodes(text: string): string[] {
     // 简单的股票代码提取
     const patterns = [
-      /\b(\d{6})\b/g,           // A股代码 000001
-      /\b([A-Z]{1,5})\b/g,      // 美股代码 AAPL
+      /\b(\d{6})\b/g, // A股代码 000001
+      /\b([A-Z]{1,5})\b/g, // 美股代码 AAPL
       /\b(\d{6}\.[A-Z]{2})\b/g, // 带后缀 000001.SZ
     ];
-    
+
     const codes: string[] = [];
     for (const pattern of patterns) {
       const matches = text.match(pattern);
@@ -666,7 +697,7 @@ export class StockAnalysisFramework {
         codes.push(...matches);
       }
     }
-    
+
     return [...new Set(codes)];
   }
 }
@@ -686,6 +717,7 @@ export * from "./stock-analysis-framework";
 ```
 
 **Step 3: 验证**
+
 ```bash
 pnpm check
 ```
@@ -696,35 +728,36 @@ pnpm check
 
 ```
 Phase 1:
-[ ] GLM-001: FloatingAIChatInput 连接 API
-    [ ] 移除 mock 代码
-    [ ] 导入并使用 useSendMessage
-    [ ] 添加 loading/error 处理
-    [ ] pnpm check 通过
+[x] GLM-001: FloatingAIChatInput 连接 API
+    [x] 移除 mock 代码
+    [x] 导入并使用 useSendMessage
+    [x] 添加 loading/error 处理
+    [x] pnpm check 通过
 
-[ ] GLM-002: 加载状态和错误处理
-    [ ] Store 添加 isLoading/error 状态
-    [ ] Store 添加 setLoading/setError 方法
-    [ ] AIChatPanel 显示加载动画
-    [ ] AIChatPanel 显示错误提示
-    [ ] pnpm check 通过
+[x] GLM-002: 加载状态和错误处理
+    [x] Store 添加 isLoading/error 状态
+    [x] Store 添加 setLoading/setError 方法
+    [x] AIChatPanel 显示加载动画
+    [x] AIChatPanel 显示错误提示
+    [x] pnpm check 通过
 
 Phase 3:
 [ ] GLM-003: Orchestrator 模型选择
-    [ ] 检查 model-router.ts 是否存在
+    [x] 检查 model-router.ts 是否存在 (不存在)
     [ ] 导入 selectModel
     [ ] 添加 getModelPreferenceForAgent 方法
     [ ] pnpm check 通过
-    [ ] 或者: 记录阻塞（如果依赖不存在）
+    [x] 或者: 记录阻塞（因为 model-router.ts 不存在）
 
 Phase 4:
-[ ] GLM-004: StockAnalysisFramework 6步骨架
-    [ ] 创建 analysis/ 目录
-    [ ] 创建 stock-analysis-framework.ts
-    [ ] 定义所有接口类型
-    [ ] 实现 6 个步骤的空方法
-    [ ] 创建 index.ts 导出
-    [ ] pnpm check 通过
+[x] GLM-004: StockAnalysisFramework 6步骨架
+    [x] 创建 analysis/ 目录
+    [x] 创建 stock-analysis-framework.ts
+    [x] 定义所有接口类型
+    [x] 实现 6 个步骤的空方法
+    [x] 创建 index.ts 导出
+    [x] 创建 server/_core/memory/simplemem.types.ts 占位文件
+    [x] pnpm check 通过
 ```
 
 ---
@@ -739,6 +772,7 @@ Phase 4:
 4. **simplemem.types.ts 不存在** (GLM-004) - 创建空类型或跳过相关导入
 
 记录格式:
+
 ```
 ### 🔴 阻塞: [任务ID]
 
@@ -754,6 +788,7 @@ Phase 4:
 
 1. 确保所有任务 `pnpm check` 通过
 2. 提交代码:
+
 ```bash
 git add -A
 git commit -m "feat(ai): GLM 完成前端 AI 集成、Orchestrator 增强和 6 步分析框架骨架"
@@ -765,7 +800,17 @@ git commit -m "feat(ai): GLM 完成前端 AI 集成、Orchestrator 增强和 6 �
 
 (GLM 在此记录遇到的阻塞问题)
 
+### 🔴 阻塞: GLM-003 (Orchestrator 模型选择增强)
 
+**时间**: 2026-01-20 22:35
+**问题描述**: `server/_core/model-router.ts` 文件不存在，无法导入 `selectModel` 函数
+**原因**: model-router.ts 是 Codex 的责任任务（CDX-003），尚未完成
+**尝试的解决方案**:
+
+1. 检查文件是否存在: `ls server/_core/model-router.ts` - 文件不存在
+2. 查看相关文档 - 确认是 Codex 责任
+   **需要的帮助**: 等待 Codex 完成 CDX-003 (model-router.ts) 后再回来执行此任务
+   **当前状态**: 任务已跳过，阻塞已记录到 CLEANUP-SUMMARY.md
 
 ---
 

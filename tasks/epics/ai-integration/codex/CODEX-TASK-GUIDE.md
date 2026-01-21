@@ -1652,6 +1652,13 @@ git commit -m "feat(ai): Codex 完成流式响应、多模型路由、SimpleMem 
 **尝试的解决方案**: 检查 `shared/` 目录结构并确认冲突。  
 **需要的帮助**: 请确认是否允许调整现有 `shared/types.ts`（改名/迁移），或改为将 stream 类型放到其他路径（如 `shared/stream.ts` 或 `server/_core/types/`）。  
 
+### 🔴 阻塞: CDX-000 - pnpm check
+
+**时间**: 2026-01-20 23:28  
+**问题描述**: `pnpm check` 失败，报错来自 `server/experiments/*` 的语法错误（与本任务无关）。  
+**尝试的解决方案**: 仅运行 `pnpm check` 复现错误，未修改实验文件。  
+**需要的帮助**: 请确认是否需要修复 `server/experiments` 下的语法问题，或将其从 `tsconfig.json` 的编译范围中排除。  
+
 
 
 ---

@@ -19,29 +19,34 @@
 ## ✨ 特性
 
 ### 📈 智能图表系统
+
 - **K线图表**: 支持线图/蜡烛图一键切换
 - **多周期支持**: 1D / 5D / 1M / 6M / YTD / 1Y / 5Y / MAX
 - **A股交易时间**: 自动适配 9:30-11:30, 13:00-15:00 交易时段
 - **红涨绿跌**: 符合中国A股市场惯例
 
 ### 🎨 多主题系统
+
 - **Pixel**: 像素风格，复古情怀
 - **Modern**: 现代简约设计
 - **Dark**: 深色护眼模式
 - **Cyberpunk**: 赛博朋克霓虹风
 
 ### 🤖 AI 分析助手
+
 - 集成多种大语言模型 (OpenAI / DeepSeek / Gemini / GLM)
 - 智能股票分析与投资建议
 - 自然语言交互查询
 
 ### 📊 多数据源整合
+
 - **iFinD (同花顺)**: 专业金融数据
 - **AKShare**: 开源量化数据
 - **Eastmoney (东方财富)**: 实时行情数据
 - 自动容错切换，确保数据可用性
 
 ### 💼 自选股管理
+
 - 快速添加/删除自选股
 - 键盘导航支持 (↑↓ 选择, Enter 添加)
 - 实时价格与涨跌幅显示
@@ -51,39 +56,43 @@
 ## 🛠 技术栈
 
 ### 前端 (Client)
-| 技术 | 用途 |
-|------|------|
-| React 18 | UI 框架 |
-| TypeScript | 类型安全 |
-| Zustand | 状态管理 |
-| React Query | 数据获取与缓存 |
-| lightweight-charts | 高性能图表库 |
-| Tailwind CSS | 样式系统 |
-| Lucide React | 图标库 |
+
+| 技术               | 用途           |
+| ------------------ | -------------- |
+| React 18           | UI 框架        |
+| TypeScript         | 类型安全       |
+| Zustand            | 状态管理       |
+| React Query        | 数据获取与缓存 |
+| lightweight-charts | 高性能图表库   |
+| Tailwind CSS       | 样式系统       |
+| Lucide React       | 图标库         |
 
 ### 后端 (Server)
-| 技术 | 用途 |
-|------|------|
-| Node.js | 运行时 |
-| tRPC | 类型安全 API |
-| Drizzle ORM | 数据库 ORM |
-| SQLite | 本地数据存储 |
-| Express | HTTP 服务器 |
+
+| 技术        | 用途         |
+| ----------- | ------------ |
+| Node.js     | 运行时       |
+| tRPC        | 类型安全 API |
+| Drizzle ORM | 数据库 ORM   |
+| SQLite      | 本地数据存储 |
+| Express     | HTTP 服务器  |
 
 ### AI 协作开发
-| Agent | 角色 |
-|-------|------|
+
+| Agent                | 角色               |
+| -------------------- | ------------------ |
 | Antigravity (Gemini) | 项目协调、架构决策 |
-| Codex (OpenAI) | 代码实现、过夜任务 |
-| Amp (Claude) | 代码审查 |
-| GLM / MiniMax | 大批量代码生成 |
-| Grok | 技术调研 |
+| Codex (OpenAI)       | 代码实现、过夜任务 |
+| Amp (Claude)         | 代码审查           |
+| GLM / MiniMax        | 大批量代码生成     |
+| Grok                 | 技术调研           |
 
 ---
 
 ## 🚀 快速开始
 
 ### 环境要求
+
 - Node.js >= 18
 - pnpm >= 8
 - Python 3.9+ (用于 AKShare 数据服务)
@@ -110,6 +119,7 @@ pnpm dev
 ```
 
 ### 访问应用
+
 启动后访问 http://localhost:6888 (或控制台显示的端口)
 
 ---
@@ -121,36 +131,46 @@ DragonFly/
 ├── client/                 # 前端应用
 │   └── src/
 │       ├── refactor_v2/    # 新版 UI 组件
+│       ├── __dev__/        # 开发环境专用组件
 │       ├── components/     # 通用组件
 │       └── pages/          # 页面组件
 ├── server/                 # 后端服务
 │   ├── routers/            # tRPC 路由
 │   ├── providers/          # 数据提供者
-│   └── _core/              # 核心模块
-├── shared/                 # 前后端共享类型
-├── docs/                   # 项目文档
-│   ├── architecture/       # 架构设计
-│   ├── ai-collab/          # AI 协作手册
-│   └── api/                # API 文档
-├── .agent/                 # AI Agent 配置
-│   ├── skills/             # Agent 技能库
-│   └── workflows/          # 工作流定义
-├── tasks/                  # 任务管理
-│   └── epics/              # Epic 任务集
-├── scripts/                # 构建脚本
-├── tools/                  # 开发工具
-└── drizzle/                # 数据库迁移
+│   ├── _core/             # 核心模块
+│   ├── __tests__/         # 测试文件
+│   │   ├── ai_agents/     # AI Agent 测试
+│   │   ├── integration/   # 集成测试
+│   │   └── unit/         # 单元测试
+│   ├── scripts/           # 分析和回测脚本
+│   │   ├── analysis/      # 分析脚本
+│   │   └── backtest/      # 回测脚本
+│   └── experiments/      # 实验和原型代码
+├── shared/                # 前后端共享类型
+├── archives/              # 归档文件
+├── docs/                  # 项目文档
+│   ├── architecture/      # 架构设计
+│   ├── ai-collab/         # AI 协作手册
+│   └── api/               # API 文档
+├── .agent/               # AI Agent 配置
+│   ├── skills/           # Agent 技能库
+│   └── workflows/        # 工作流定义
+├── tasks/                # 任务管理
+│   └── epics/           # Epic 任务集
+├── scripts/              # 构建脚本
+├── tools/                # 开发工具
+└── drizzle/             # 数据库迁移
 ```
 
 ---
 
 ## 📖 文档
 
-| 文档 | 说明 |
-|------|------|
-| [架构设计](docs/architecture/DRAGONFLY-REFACTOR.md) | 项目重构设计文档 |
+| 文档                                                | 说明              |
+| --------------------------------------------------- | ----------------- |
+| [架构设计](docs/architecture/DRAGONFLY-REFACTOR.md) | 项目重构设计文档  |
 | [AI 协作手册](docs/ai-collab/AI-COLLAB-PLAYBOOK.md) | 多 Agent 协作规范 |
-| [API 参考](docs/api/) | 后端 API 文档 |
+| [API 参考](docs/api/)                               | 后端 API 文档     |
 
 ---
 
@@ -158,15 +178,15 @@ DragonFly/
 
 DragonFly 是 stock-tracker 项目的全面重构版本，主要改进包括：
 
-| 方面 | stock-tracker | DragonFly |
-|------|---------------|-----------|
-| UI 架构 | 单文件组件 | 模块化组件系统 |
-| 状态管理 | Props 传递 | Zustand 全局状态 |
-| API 设计 | REST | tRPC 类型安全 |
-| 图表库 | 基础实现 | lightweight-charts |
-| 主题系统 | 无 | 4 套完整主题 |
-| AI 能力 | 基础对话 | 多模型智能分析 |
-| 数据源 | 单一来源 | 多源容错切换 |
+| 方面     | stock-tracker | DragonFly          |
+| -------- | ------------- | ------------------ |
+| UI 架构  | 单文件组件    | 模块化组件系统     |
+| 状态管理 | Props 传递    | Zustand 全局状态   |
+| API 设计 | REST          | tRPC 类型安全      |
+| 图表库   | 基础实现      | lightweight-charts |
+| 主题系统 | 无            | 4 套完整主题       |
+| AI 能力  | 基础对话      | 多模型智能分析     |
+| 数据源   | 单一来源      | 多源容错切换       |
 
 ---
 
@@ -175,6 +195,7 @@ DragonFly 是 stock-tracker 项目的全面重构版本，主要改进包括：
 欢迎提交 Issue 和 Pull Request！
 
 ### 开发规范
+
 - 代码风格: ESLint + Prettier
 - 提交规范: Conventional Commits
 - 类型检查: `pnpm check`
