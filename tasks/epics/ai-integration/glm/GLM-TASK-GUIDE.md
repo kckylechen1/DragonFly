@@ -758,6 +758,8 @@ Phase 4:
     [x] 创建 index.ts 导出
     [x] 创建 server/_core/memory/simplemem.types.ts 占位文件
     [x] pnpm check 通过
+
+总体完成度: 4/4 任务 (100%)
 ```
 
 ---
@@ -800,17 +802,19 @@ git commit -m "feat(ai): GLM 完成前端 AI 集成、Orchestrator 增强和 6 �
 
 (GLM 在此记录遇到的阻塞问题)
 
-### 🔴 阻塞: GLM-003 (Orchestrator 模型选择增强)
+### ✅ GLM-003: 已完成 (2026-01-20)
 
-**时间**: 2026-01-20 22:35
-**问题描述**: `server/_core/model-router.ts` 文件不存在，无法导入 `selectModel` 函数
-**原因**: model-router.ts 是 Codex 的责任任务（CDX-003），尚未完成
-**尝试的解决方案**:
+**解决时间**: 2026-01-20 23:00
+**解决方式**: 等待 Codex 完成 CDX-003 (model-router.ts) 后执行
+**实现内容**:
 
-1. 检查文件是否存在: `ls server/_core/model-router.ts` - 文件不存在
-2. 查看相关文档 - 确认是 Codex 责任
-   **需要的帮助**: 等待 Codex 完成 CDX-003 (model-router.ts) 后再回来执行此任务
-   **当前状态**: 任务已跳过，阻塞已记录到 CLEANUP-SUMMARY.md
+- 导入 selectModel 和 ModelPreference
+- 添加 getModelPreferenceForAgent 方法
+- ResearchAgent → Grok (实时搜索能力)
+- AnalysisAgent → GLM (高性价比)
+- BacktestAgent → DeepSeek (强推理能力)
+- 在创建 Agent 时记录模型选择
+- pnpm check 通过
 
 ---
 
