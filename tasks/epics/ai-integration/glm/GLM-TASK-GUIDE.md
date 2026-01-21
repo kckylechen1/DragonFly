@@ -742,12 +742,12 @@ Phase 1:
     [x] pnpm check 通过
 
 Phase 3:
-[ ] GLM-003: Orchestrator 模型选择
-    [x] 检查 model-router.ts 是否存在 (不存在)
-    [ ] 导入 selectModel
-    [ ] 添加 getModelPreferenceForAgent 方法
-    [ ] pnpm check 通过
-    [x] 或者: 记录阻塞（因为 model-router.ts 不存在）
+[x] GLM-003: Orchestrator 模型选择
+    [x] 检查 model-router.ts 是否存在
+    [x] 导入 selectModel
+    [x] 添加 getModelPreferenceForAgent 方法
+    [x] 在执行任务时应用模型偏好
+    [x] pnpm check 通过
 
 Phase 4:
 [x] GLM-004: StockAnalysisFramework 6步骨架

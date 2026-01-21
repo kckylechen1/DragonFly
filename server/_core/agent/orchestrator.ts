@@ -13,6 +13,7 @@ import { TaskRunner } from "./task-runner";
 import { ResearchAgent } from "./agents/research-agent";
 import { AnalysisAgent } from "./agents/analysis-agent";
 import { BacktestAgent } from "./agents/backtest-agent";
+import { selectModel, type ModelPreference } from "../model-router";
 import type {
   TaskDefinition,
   TaskResult,
@@ -149,6 +150,13 @@ export class AgentOrchestrator extends BaseAgent {
    * 创建专用 Agent
    */
   private createAgent(type: string): BaseAgent {
+    const modelPreference = this.getModelPreferenceForAgent(type);
+    const modelConfig = selectModel(modelPreference);
+
+    console.log(
+      `[Orchestrator] 任务 ${type} 使用模型: ${modelConfig.name} (${modelPreference.reason})`
+    );
+
     switch (type) {
       case "research":
         return new ResearchAgent();
@@ -158,6 +166,34 @@ export class AgentOrchestrator extends BaseAgent {
         return new BacktestAgent();
       default:
         return new AnalysisAgent();
+    }
+  }
+
+  private getModelPreferenceForAgent(agentType: string): ModelPreference {
+    switch (agentType) {
+      case "research":
+        return {
+          provider: "grok",
+          capabilities: ["realtime_search", "research"],
+          reason: "实时搜索能力",
+        };
+      case "analysis":
+        return {
+          provider: "glm",
+          capabilities: ["chinese", "fast"],
+          reason: "高性价比",
+        };
+      case "backtest":
+        return {
+          provider: "deepseek",
+          capabilities: ["reasoning", "math"],
+          reason: "强推理能力",
+        };
+      default:
+        return {
+          preferCheap: true,
+          reason: "默认选择",
+        };
     }
   }
 
