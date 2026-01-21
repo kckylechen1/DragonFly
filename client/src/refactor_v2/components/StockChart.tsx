@@ -10,7 +10,7 @@ import {
   HistogramSeries,
   CandlestickSeries,
 } from "lightweight-charts";
-import { useTheme } from "@/contexts/ThemeContext";
+import { useTheme } from "@/refactor_v2/contexts/ThemeContext";
 import {
   Camera,
   Maximize2,
