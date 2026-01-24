@@ -49,8 +49,8 @@ export abstract class BaseAgent {
       verbose: true,
       parallelToolCalls: true,
       toolBudget: {
-        simple: 4, // 简单问题最多 4 个工具
-        complex: 8, // 复杂问题最多 8 个工具
+        simple: 6, // 简单问题最多 6 个工具
+        complex: 12, // 复杂问题最多 12 个工具
       },
       ...config,
     };
@@ -109,6 +109,9 @@ export abstract class BaseAgent {
     const complexPatterns = [
       /对比|比较|研究|调研|分析.*趋势|深度分析/i,
       /回测|测试.*策略/i,
+      /叠加|逻辑|基本面|估值|业绩|行业地位/i,
+      /CPU|芯片|产业链|供应链|深度|全面|综合|详细/i,
+      /为什么|怎么操作|止损|止盈|买入|卖出|选择/i,
       /扫描|寻找|发现/i,
       /多个|全部|市场|行业/i,
       /详细|全面|综合/i,
