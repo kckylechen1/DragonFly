@@ -262,9 +262,23 @@ export abstract class BaseAgent {
    * 调用 LLM
    */
   protected async callLLM(): Promise<LLMResponse> {
-    const apiUrl = ENV.glmApiUrl || "https://open.bigmodel.cn/api/paas/v4";
-    const apiKey = ENV.glmApiKey;
-    const model = this.config.model || ENV.glmModel || "glm-4.7";
+    const preferGrok = Boolean(ENV.grokApiKey);
+    const apiUrl = preferGrok
+      ? ENV.grokApiUrl
+      : ENV.glmApiUrl || "https://open.bigmodel.cn/api/paas/v4";
+    const apiKey = preferGrok ? ENV.grokApiKey : ENV.glmApiKey;
+    const model =
+      this.config.model ||
+      (preferGrok ? ENV.grokModel : ENV.glmModel) ||
+      (preferGrok ? "grok-4-1-fast-reasoning" : "glm-4.7");
+
+    if (!apiKey) {
+      throw new Error(
+        preferGrok
+          ? "Grok API key not configured."
+          : "GLM API key not configured."
+      );
+    }
 
     const payload: any = {
       model,

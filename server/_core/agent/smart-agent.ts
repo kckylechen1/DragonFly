@@ -19,6 +19,7 @@ import {
 import { getMemoryStore } from "../memory";
 import { getSkillRegistry, type Skill } from "../skills";
 import type { StreamEvent, AgentMessage } from "./types";
+import { ENV } from "../env";
 
 export interface SmartAgentConfig {
   sessionId?: string;
@@ -41,6 +42,12 @@ export class SmartAgent {
       verbose: true,
       ...config,
     };
+
+    if (!ENV.grokApiKey) {
+      console.warn(
+        "[SmartAgent] Grok API key not found, falling back to GLM"
+      );
+    }
 
     const sessionStore = getSessionStore();
     this.session = sessionStore.getOrCreateSession(
