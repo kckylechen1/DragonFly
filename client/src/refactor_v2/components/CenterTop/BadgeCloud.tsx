@@ -42,16 +42,17 @@ export const BadgeCloud: React.FC<BadgeCloudProps> = ({
 export function generateBadges(quote: { mainFlow: number }): Badge[] {
   const badges: Badge[] = [];
 
-  if (Math.abs(quote.mainFlow) > 1) {
+  const mainFlowInBillion = quote.mainFlow / 100000000;
+  if (Math.abs(mainFlowInBillion) > 0.01) {
     badges.push({
       id: "main-flow",
       icon: Zap,
       label:
-        quote.mainFlow > 0
-          ? `主力净流入 ¥${quote.mainFlow.toFixed(2)}亿`
-          : `主力净流出 ¥${Math.abs(quote.mainFlow).toFixed(2)}亿`,
+        mainFlowInBillion > 0
+          ? `主力净流入 ¥${mainFlowInBillion.toFixed(2)}亿`
+          : `主力净流出 ¥${Math.abs(mainFlowInBillion).toFixed(2)}亿`,
       color:
-        quote.mainFlow > 0
+        mainFlowInBillion > 0
           ? "text-[var(--color-up)]"
           : "text-[var(--color-down)]",
     });

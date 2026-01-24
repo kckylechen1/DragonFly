@@ -1,6 +1,7 @@
 import React from "react";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import type { StockQuote } from "@/refactor_v2/types";
+import { AnimatedNumber } from "@/refactor_v2/components/ui/AnimatedNumber";
 
 interface StockHeaderProps {
   quote: StockQuote;
@@ -11,25 +12,41 @@ export const StockHeader: React.FC<StockHeaderProps> = ({ quote }) => {
 
   return (
     <div className="flex items-center gap-4 flex-wrap glass rounded-lg px-4 py-3">
-      <h2 className="text-2xl font-bold text-[var(--text-primary)]">
-        {quote.name}
-      </h2>
-      <span className="text-lg text-[var(--text-secondary)] price-display">
-        ¥{quote.price.toFixed(2)}
-      </span>
-      <div
-        className={`flex items-center gap-1 price-display ${
-          isUp ? "text-[var(--color-up)]" : "text-[var(--color-down)]"
-        }`}
-      >
-        {isUp ? (
-          <TrendingUp className="w-4 h-4" />
-        ) : (
-          <TrendingDown className="w-4 h-4" />
-        )}
-        <span>
+      <div className="flex flex-col">
+        <h2 className="text-2xl font-bold text-[var(--text-primary)]">
+          {quote.name || quote.symbol}
+        </h2>
+        <span className="text-xs text-[var(--text-muted)] font-mono">
+          {quote.symbol}
+        </span>
+      </div>
+      <div className="flex items-baseline gap-3">
+        <AnimatedNumber
+          value={quote.price}
+          decimals={2}
+          prefix="¥"
+          className="text-2xl font-semibold text-[var(--text-primary)] price-display"
+        />
+        <span
+          className={`flex items-center gap-1 text-sm price-display ${
+            isUp ? "text-[var(--color-up)]" : "text-[var(--color-down)]"
+          }`}
+        >
+          {isUp ? (
+            <TrendingUp className="w-4 h-4" />
+          ) : (
+            <TrendingDown className="w-4 h-4" />
+          )}
           {isUp ? "+" : ""}
-          {quote.change.toFixed(2)} ({quote.changePercent.toFixed(2)}%)
+          <AnimatedNumber
+            value={quote.change}
+            decimals={2}
+            className="font-semibold"
+          />
+          <span>
+            ({isUp ? "+" : ""}
+            {quote.changePercent.toFixed(2)}%)
+          </span>
         </span>
       </div>
     </div>

@@ -48,6 +48,12 @@ export interface StockQuote {
   mainFlow: number;
   turnoverRate: number;
   amplitude: number;
+  amount?: number;
+  volumeRatio?: number;
+  pe?: number | null;
+  pb?: number | null;
+  marketCap?: number | null;
+  circulationMarketCap?: number | null;
   volume?: number;
   high?: number;
   low?: number;

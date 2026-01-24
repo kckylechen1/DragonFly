@@ -12,6 +12,17 @@ export function useStockQuote(code: string) {
   });
 }
 
+// 获取股票扩展数据（资金流向、排名等）
+export function useStockExtras(code: string) {
+  return useQuery({
+    queryKey: ["stock", "extras", code],
+    queryFn: () => api.stocks.getExtras.query({ code }),
+    enabled: !!code,
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
 // 获取K线数据
 export function useKlineData(
   code: string,

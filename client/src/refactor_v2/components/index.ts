@@ -8,3 +8,4 @@ export * from "./FloatingAIChatInput";
 export * from "./StockChart";
 export * from "./ThemeSwitcher";
 export * from "./RecentlyViewed";
+export * from "./ui/AnimatedNumber";

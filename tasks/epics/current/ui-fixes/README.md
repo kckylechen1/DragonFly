@@ -43,6 +43,17 @@
 - CDX-UI-003: AI 聊天 (优先级最高，功能退化严重)
 - CDX-UI-004: 股票信息面板
 
+### Phase 4: 审查 (Amp)
+- 🟣 Amp Code Review (Spec 合规 + 代码质量)
+
+## 🔙 回滚点
+
+```bash
+# 如果 Codex 改坏了，可回滚到此 commit:
+git reset --hard HEAD~1
+# commit message: checkpoint: pre-Codex UI fixes
+```
+
 ## 📁 任务文件
 
 | Agent | 任务文件 |

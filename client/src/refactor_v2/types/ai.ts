@@ -13,12 +13,20 @@ export interface AIChatState {
   messages: AIMessage[];
   isLoading: boolean;
   error: string | null;
+  sessionId: string | null;
+  thinkHard: boolean;
+  followUpSuggestions: string[];
 }
 
 export interface AIChatActions {
-  addMessage: (message: Omit<AIMessage, "id" | "createdAt">) => void;
+  addMessage: (message: Omit<AIMessage, "id" | "createdAt">) => string;
+  setMessages: (messages: AIMessage[]) => void;
+  updateMessage: (id: string, updates: Partial<AIMessage>) => void;
   setIsLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setSessionId: (sessionId: string | null) => void;
+  setThinkHard: (value: boolean) => void;
+  setFollowUpSuggestions: (suggestions: string[]) => void;
   clearMessages: () => void;
 }
 

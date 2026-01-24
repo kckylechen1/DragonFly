@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { useKlineData, useStockQuote } from "@/refactor_v2/api";
+import { useKlineData, useStockExtras, useStockQuote } from "@/refactor_v2/api";
 import { StockChart } from "@/refactor_v2/components/StockChart";
 import { useChartHistoryStore } from "@/refactor_v2/stores/chartHistory.store";
 import { useWatchlistStore } from "@/refactor_v2/stores/watchlist.store";
@@ -8,8 +8,8 @@ import type {
   StockQuote,
 } from "@/refactor_v2/types";
 import { BadgeCloud, generateBadges } from "./BadgeCloud";
-import { FundsBar } from "./FundsBar";
 import { StockHeader } from "./StockHeader";
+import { StockInfoPanel } from "./StockInfoPanel";
 
 const PERIOD_MAP: Record<ChartPeriod, { period: string; limit: number }> = {
   "1D": { period: "minute", limit: 240 },
@@ -31,6 +31,7 @@ export const CenterTop: React.FC = () => {
     isLoading: quoteLoading,
     isError: quoteError,
   } = useStockQuote(currentSymbol);
+  const { data: extrasData } = useStockExtras(currentSymbol);
   const { period: apiPeriod, limit } = PERIOD_MAP[activePeriod];
   const {
     data: klineData,
@@ -60,6 +61,12 @@ export const CenterTop: React.FC = () => {
         mainFlow: 0,
         turnoverRate: 0,
         amplitude: 0,
+        amount: 0,
+        volumeRatio: undefined,
+        pe: null,
+        pb: null,
+        marketCap: null,
+        circulationMarketCap: null,
       };
     }
 
@@ -78,7 +85,10 @@ export const CenterTop: React.FC = () => {
       price: price ?? 0,
       change: quoteData.change ?? 0,
       changePercent: quoteData.changePercent ?? 0,
-      mainFlow: quoteData.mainNetInflow ?? 0,
+      mainFlow:
+        extrasData?.capitalFlow?.mainNetInflow ??
+        quoteData.mainNetInflow ??
+        0,
       turnoverRate: quoteData.turnoverRate ?? 0,
       amplitude,
       volume: quoteData.volume ?? undefined,
@@ -86,8 +96,14 @@ export const CenterTop: React.FC = () => {
       low: quoteData.low ?? undefined,
       open: quoteData.open ?? undefined,
       prevClose: quoteData.preClose ?? undefined,
+      amount: quoteData.amount ?? undefined,
+      volumeRatio: quoteData.volumeRatio ?? undefined,
+      pe: quoteData.pe ?? null,
+      pb: quoteData.pb ?? null,
+      marketCap: quoteData.marketCap ?? null,
+      circulationMarketCap: quoteData.circulationMarketCap ?? null,
     };
-  }, [currentSymbol, quoteData, localName]);
+  }, [currentSymbol, quoteData, localName, extrasData]);
 
   const badges = useMemo(() => generateBadges(quote), [quote]);
   const chartData = useMemo(() => {
@@ -133,10 +149,9 @@ export const CenterTop: React.FC = () => {
       </div>
 
       <div className="shrink-0">
-        <FundsBar
-          mainFlow={quote.mainFlow}
-          turnoverRate={quote.turnoverRate}
-          amplitude={quote.amplitude}
+        <StockInfoPanel
+          quote={quote}
+          capitalFlow={extrasData?.capitalFlow ?? null}
         />
       </div>
 

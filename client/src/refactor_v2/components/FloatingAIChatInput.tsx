@@ -6,10 +6,11 @@ import React, {
 } from "react";
 import { Lightbulb, Send, Sparkles } from "lucide-react";
 import {
-  useAIChatStore,
   useAIPanelControl,
 } from "@/refactor_v2/stores/aiChat.store";
-import { useSendMessage } from "@/refactor_v2/api";
+import { useStockExtras, useStockQuote } from "@/refactor_v2/api";
+import { useWatchlistStore } from "@/refactor_v2/stores/watchlist.store";
+import { useAIChatActions } from "@/refactor_v2/hooks/useAIChatActions";
 
 export interface FloatingAIChatInputHandle {
   focus: () => void;
@@ -19,9 +20,11 @@ export const FloatingAIChatInput = forwardRef<FloatingAIChatInputHandle, {}>(
   (_, ref) => {
     const [input, setInput] = useState("");
     const inputRef = useRef<HTMLInputElement>(null);
-    const { addMessage, setIsLoading, setError } = useAIChatStore();
     const { open, close } = useAIPanelControl();
-    const sendMessageMutation = useSendMessage();
+    const { currentSymbol } = useWatchlistStore();
+    const { data: quote } = useStockQuote(currentSymbol);
+    const { data: extras } = useStockExtras(currentSymbol);
+    const { sendMessage } = useAIChatActions();
 
     useImperativeHandle(ref, () => ({
       focus: () => {
@@ -31,39 +34,47 @@ export const FloatingAIChatInput = forwardRef<FloatingAIChatInputHandle, {}>(
 
     const handleSend = async () => {
       if (!input.trim()) return;
-      if (sendMessageMutation.isPending) return;
-
-      const userMessage = input;
+      const userMessage = input.trim();
       setInput("");
-
-      addMessage({
-        role: "user",
-        content: userMessage,
-      });
-
-      setIsLoading(true);
-      setError(null);
       open();
 
-      try {
-        const result = await sendMessageMutation.mutateAsync({
-          messages: [{ role: "user", content: userMessage }],
-        });
+      const stockContext = quote
+        ? {
+            quote: {
+              name: quote.name,
+              code: currentSymbol,
+              price: quote.price,
+              change: quote.change,
+              changePercent: quote.changePercent,
+              open: quote.open,
+              high: quote.high,
+              low: quote.low,
+              preClose: quote.preClose,
+              volume: quote.volume,
+              amount: quote.amount,
+              turnoverRate: quote.turnoverRate,
+              pe: quote.pe,
+              pb: quote.pb,
+              marketCap: quote.marketCap,
+              circulationMarketCap: quote.circulationMarketCap,
+              volumeRatio: quote.volumeRatio,
+            },
+            capitalFlow: extras?.capitalFlow
+              ? {
+                  mainNetInflow: extras.capitalFlow.mainNetInflow,
+                  superLargeNetInflow: extras.capitalFlow.superLargeNetInflow,
+                  largeNetInflow: extras.capitalFlow.largeNetInflow,
+                  mediumNetInflow: extras.capitalFlow.mediumNetInflow,
+                  smallNetInflow: extras.capitalFlow.smallNetInflow,
+                }
+              : null,
+          }
+        : null;
 
-        addMessage({
-          role: "assistant",
-          content: result.content || "抱歉，暂时无法获取回复。",
-        });
-      } catch (error) {
-        console.error("AI 请求失败:", error);
-        setError("请求失败，请稍后重试");
-        addMessage({
-          role: "assistant",
-          content: "❌ 请求失败，请稍后重试。",
-        });
-      } finally {
-        setIsLoading(false);
-      }
+      await sendMessage(userMessage, {
+        stockCode: currentSymbol || undefined,
+        stockContext,
+      });
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

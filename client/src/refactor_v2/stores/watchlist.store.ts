@@ -28,10 +28,21 @@ export const useWatchlistStore = create<WatchlistStore>()(
 
       addToWatchlist: item => {
         set(state => {
-          if (state.watchlist.some(watch => watch.symbol === item.symbol)) {
+          const existingIndex = state.watchlist.findIndex(
+            watch => watch.symbol === item.symbol
+          );
+          if (existingIndex === -1) {
+            return { watchlist: [...state.watchlist, item] };
+          }
+
+          const existing = state.watchlist[existingIndex];
+          if (existing.name === item.name || !item.name) {
             return state;
           }
-          return { watchlist: [...state.watchlist, item] };
+
+          const nextWatchlist = [...state.watchlist];
+          nextWatchlist[existingIndex] = { ...existing, name: item.name };
+          return { watchlist: nextWatchlist };
         });
       },
 

@@ -87,13 +87,19 @@ export async function getQuoteWithFallback(
     quote = { ...eastmoneyQuote, source: "eastmoney" as const };
   }
 
-  if (quote && (!quote.name || quote.name.trim() === "")) {
-    try {
-      const akshare = await import("../akshare");
-      const stockInfo = await akshare.getStockInfo(code);
-      quote.name = stockInfo?.name || code;
-    } catch (error) {
-      quote.name = quote.name || code;
+  // 如果名称为空或名称等于代码（iFind 返回代码作为名称），尝试获取真正的名称
+  if (quote && (!quote.name || quote.name.trim() === "" || quote.name === quote.code || quote.name === code)) {
+    // 优先使用 eastmoney 的名称
+    if (eastmoneyQuote?.name && eastmoneyQuote.name !== code) {
+      quote.name = eastmoneyQuote.name;
+    } else {
+      try {
+        const akshare = await import("../akshare");
+        const stockInfo = await akshare.getStockInfo(code);
+        quote.name = stockInfo?.name || code;
+      } catch (error) {
+        quote.name = quote.name || code;
+      }
     }
   }
 

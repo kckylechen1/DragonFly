@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
+import { DndProvider, useDrag, useDrop } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 import {
   useAddToWatchlist,
+  useRemoveFromWatchlist,
   useStockQuote,
   useStockSearch,
   useWatchlist,
@@ -9,8 +12,11 @@ import {
 import { ThemeSwitcher } from "@/refactor_v2/components/ThemeSwitcher";
 import { useWatchlistStore } from "@/refactor_v2/stores/watchlist.store";
 
+const DRAG_TYPE = "STOCK_ITEM";
+
 interface WatchlistEntry {
   key: string;
+  id?: number;
   symbol: string;
   name: string;
   isSearchResult: boolean;
@@ -21,6 +27,7 @@ interface WatchlistRowProps {
   isActive: boolean;
   isHighlighted?: boolean;
   showChange: boolean;
+  isDraggable?: boolean;
   onSelect: (item: WatchlistEntry) => void;
 }
 
@@ -29,6 +36,7 @@ const WatchlistRow: React.FC<WatchlistRowProps> = ({
   isActive,
   isHighlighted = false,
   showChange,
+  isDraggable = false,
   onSelect,
 }) => {
   const quoteCode = showChange ? item.symbol : "";
@@ -37,42 +45,107 @@ const WatchlistRow: React.FC<WatchlistRowProps> = ({
   const hasChange = typeof changePercent === "number";
   const isUp = (changePercent ?? 0) >= 0;
 
+  const resolvedName =
+    !item.isSearchResult &&
+      (item.name === item.symbol || item.name === "自选股")
+      ? quoteData?.name || item.name
+      : item.name;
+  const resolvedItem =
+    resolvedName === item.name ? item : { ...item, name: resolvedName };
+
+  const [{ isDragging }, drag] = useDrag(() => ({
+    type: DRAG_TYPE,
+    item: { id: item.id, symbol: item.symbol, name: resolvedName },
+    canDrag: isDraggable && !item.isSearchResult && !!item.id,
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  }), [item.id, item.symbol, resolvedName, isDraggable, item.isSearchResult]);
+
   return (
-    <button
-      onClick={() => onSelect(item)}
-      aria-selected={isHighlighted}
-      className={`w-full px-3 py-2 text-left transition-all duration-150 border-l-[3px] rounded-md ${isActive || isHighlighted
+    <div ref={isDraggable ? drag as unknown as React.Ref<HTMLDivElement> : undefined} style={{ opacity: isDragging ? 0.5 : 1 }}>
+      <button
+        type="button"
+        onClick={() => onSelect(resolvedItem)}
+        aria-selected={isHighlighted}
+        style={{ cursor: isDraggable ? 'grab' : 'pointer' }}
+        className={`relative w-full px-3 py-2 text-left transition-all duration-150 border-l-[3px] rounded-md ${isActive || isHighlighted
           ? "border-l-[var(--accent-primary)] text-[var(--text-primary)] bg-[var(--bg-tertiary)]/40"
           : "border-l-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-        } hover:translate-x-1 hover:bg-[var(--bg-tertiary)]/60`}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex flex-col">
-          <span className="text-sm font-semibold">{item.symbol}</span>
-          <span className="text-xs text-[var(--text-muted)]">{item.name}</span>
+          } hover:bg-[var(--bg-tertiary)]/60`}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold">{item.symbol}</span>
+            <span className="text-xs text-[var(--text-muted)]">
+              {resolvedName}
+            </span>
+          </div>
+          {showChange && (
+            <span
+              className={`text-xs font-medium price-display ${isUp ? "text-[var(--color-up)]" : "text-[var(--color-down)]"
+                }`}
+            >
+              {hasChange
+                ? `${changePercent > 0 ? "+" : ""}${changePercent.toFixed(2)}%`
+                : "--"}
+            </span>
+          )}
         </div>
-        {showChange && (
-          <span
-            className={`text-xs font-medium price-display ${isUp ? "text-[var(--color-up)]" : "text-[var(--color-down)]"
-              }`}
-          >
-            {hasChange
-              ? `${changePercent > 0 ? "+" : ""}${changePercent.toFixed(2)}%`
-              : "--"}
-          </span>
-        )}
-      </div>
-    </button>
+      </button>
+    </div>
+  );
+};
+
+// 删除区域组件
+interface DeleteZoneProps {
+  onDelete: (item: { id: number; symbol: string; name: string }) => void;
+}
+
+const DeleteZone: React.FC<DeleteZoneProps> = ({ onDelete }) => {
+  const [{ isOver, canDrop }, drop] = useDrop(() => ({
+    accept: DRAG_TYPE,
+    drop: (item: { id: number; symbol: string; name: string }) => {
+      onDelete(item);
+    },
+    collect: (monitor) => ({
+      isOver: monitor.isOver(),
+      canDrop: monitor.canDrop(),
+    }),
+  }), [onDelete]);
+
+  const isActive = isOver && canDrop;
+
+  return (
+    <div
+      ref={drop as unknown as React.Ref<HTMLDivElement>}
+      className={`flex items-center justify-center gap-2 py-3 border-t border-dashed transition-all duration-200 ${isActive
+        ? "border-red-500 bg-red-500/20 text-red-400"
+        : canDrop
+          ? "border-red-500/50 bg-red-500/10 text-red-400/60"
+          : "border-transparent text-[var(--text-muted)]"
+        }`}
+    >
+      <Trash2 className="w-4 h-4" />
+      <span className="text-xs">{isActive ? "松开删除" : "拖到这里删除"}</span>
+    </div>
   );
 };
 
 export const LeftPane: React.FC = () => {
-  const { currentSymbol, setCurrentSymbol, addToWatchlist, watchlist } =
-    useWatchlistStore();
+  const {
+    currentSymbol,
+    setCurrentSymbol,
+    addToWatchlist,
+    removeFromWatchlist,
+    watchlist,
+  } = useWatchlistStore();
   const [search, setSearch] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [openRowKey, setOpenRowKey] = useState<string | null>(null);
   const keyword = search.trim();
   const addToWatchlistMutation = useAddToWatchlist();
+  const removeFromWatchlistMutation = useRemoveFromWatchlist();
   const {
     data: watchlistData,
     isLoading: watchlistLoading,
@@ -110,11 +183,12 @@ export const LeftPane: React.FC = () => {
         const localName = watchlistNameMap.get(item.stockCode);
         return {
           key: `watch-${item.id}`,
+          id: item.id,
           symbol: item.stockCode,
           name:
             item.note && item.note !== item.stockCode
               ? item.note
-              : localName || "自选股",
+              : localName || item.stockCode,
           isSearchResult: false,
         };
       }
@@ -129,6 +203,7 @@ export const LeftPane: React.FC = () => {
   useEffect(() => {
     if (!isSearchMode) {
       setSelectedIndex(0);
+      setOpenRowKey(null);
       return;
     }
     setSelectedIndex(prev =>
@@ -139,6 +214,7 @@ export const LeftPane: React.FC = () => {
   useEffect(() => {
     if (isSearchMode) {
       setSelectedIndex(0);
+      setOpenRowKey(null);
     }
   }, [keyword, isSearchMode]);
 
@@ -150,6 +226,7 @@ export const LeftPane: React.FC = () => {
     });
     setSearch("");
     setSelectedIndex(0);
+    setOpenRowKey(null);
   };
 
   const handleSelect = (item: WatchlistEntry) => {
@@ -157,7 +234,16 @@ export const LeftPane: React.FC = () => {
       handleAddStock(item);
       return;
     }
+    addToWatchlist({ symbol: item.symbol, name: item.name });
     setCurrentSymbol(item.symbol);
+    setOpenRowKey(null);
+  };
+
+  const handleDelete = (item: WatchlistEntry) => {
+    if (!item.id) return;
+    removeFromWatchlistMutation.mutate(item.id);
+    removeFromWatchlist(item.symbol);
+    setOpenRowKey(null);
   };
 
   const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -188,7 +274,7 @@ export const LeftPane: React.FC = () => {
     }
   };
 
-  return (
+  const content = (
     <div className="flex flex-col h-full p-4 gap-4 glass">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -227,11 +313,28 @@ export const LeftPane: React.FC = () => {
               isActive={!isSearchMode && currentSymbol === item.symbol}
               isHighlighted={isSearchMode && index === selectedIndex}
               showChange={!isSearchMode}
+              isDraggable={!isSearchMode}
               onSelect={handleSelect}
             />
           ))
         )}
       </div>
+
+      {/* Delete Zone */}
+      {!isSearchMode && (
+        <DeleteZone onDelete={(item) => {
+          if (item.id) {
+            removeFromWatchlistMutation.mutate(item.id);
+            removeFromWatchlist(item.symbol);
+          }
+        }} />
+      )}
     </div>
+  );
+
+  return (
+    <DndProvider backend={HTML5Backend}>
+      {content}
+    </DndProvider>
   );
 };

@@ -3,7 +3,39 @@
 > 分支: `refactor/ui-fixes-2026-01-21`
 > 创建于: 2026-01-21
 
+---
+
+## Codex 任务文件已创建！ ✅
+
+```
+tasks/epics/current/ui-fixes/codex/CODEX-UI-FIX-GUIDE.md
+```
+
 ## 任务概览
+
+| ID | 任务 | 预估 |
+|----|------|------|
+| CDX-UI-001 | 修复股票名称显示 (代码→中文名) | 30min |
+| CDX-UI-002 | 自选股拖拽删除功能 | 45min |
+| CDX-UI-003 | AI 聊天高级功能迁移 (流式/工具/深度模式) | 120min |
+| CDX-UI-004 | 股票信息面板迁移 (资金流向/数字滚动) | 90min |
+
+**总预估**: 4.5 小时
+
+## 给 Codex 的指令
+
+```
+请阅读并执行 tasks/epics/current/ui-fixes/codex/CODEX-UI-FIX-GUIDE.md
+
+参考图片在: tasks/epics/current/ui-fixes/*.png
+(包含旧版 UI 截图，展示目标效果)
+
+回滚点: git reset --hard HEAD~1 (checkpoint: pre-Codex UI fixes)
+```
+
+---
+
+## 任务清单
 
 修复 refactor_v2 前端的四个关键问题:
 1. **股票名称显示错误** - 显示代码而非中文名
@@ -16,9 +48,9 @@
 ## 📸 新旧 UI 对比参考
 
 ### 旧版 UI - 详细股票信息面板 (目标效果)
-![贵州茅台详情](file:///Users/kc/Documents/trae_projects/DragonFly_Restructure/tasks/epics/current/old-ui-stock-panel-1.png)
+![贵州茅台详情](file:///Users/kc/Documents/trae_projects/DragonFly_Restructure/tasks/epics/current/ui-fixes/old-ui-stock-panel-1.png)
 
-![航天电子详情](file:///Users/kc/Documents/trae_projects/DragonFly_Restructure/tasks/epics/current/old-ui-stock-panel-2.png)
+![航天电子详情](file:///Users/kc/Documents/trae_projects/DragonFly_Restructure/tasks/epics/current/ui-fixes/old-ui-stock-panel-2.png)
 
 **旧版特性:**
 - 大字体价格显示 + 涨跌幅
@@ -29,7 +61,7 @@
 - **数字滚动动画** (ScrollNumber)
 
 ### 新版 UI - 当前问题
-![只显示代码](file:///Users/kc/Documents/trae_projects/DragonFly_Restructure/tasks/epics/current/new-ui-stock-code-only.png)
+![只显示代码](file:///Users/kc/Documents/trae_projects/DragonFly_Restructure/tasks/epics/current/ui-fixes/new-ui-stock-code-only.png)
 
 **当前问题:**
 - 只显示股票代码 "300502"，没有公司名称
@@ -37,7 +69,7 @@
 - 没有数字滚动动画效果
 
 ### AI 聊天 - 功能退化
-![AI聊天基础版](file:///Users/kc/Documents/trae_projects/DragonFly_Restructure/tasks/epics/current/ai-chat-basic.png)
+![AI聊天基础版](file:///Users/kc/Documents/trae_projects/DragonFly_Restructure/tasks/epics/current/ui-fixes/ai-chat-basic.png)
 
 **问题:** AI 没有获取实时数据，回答缺乏针对性
 
@@ -75,34 +107,92 @@
 用户将股票加入自选后，无法删除。
 
 ### 需要实现的功能
-1. 在股票列表项上添加左滑/右滑删除手势
-2. 或者添加长按弹出删除确认
-3. 调用后端 `watchlist.remove` API
+实现 **拖拽到底部删除区域** 的交互方式（类似 iOS 拖到底部删除的体验）：
+
+1. 长按股票项开始拖拽
+2. 底部出现删除区域（红色高亮）
+3. 拖到删除区域松手触发删除
+4. 调用后端 `watchlist.remove` API
 
 ### 需要修改的文件
-1. `client/src/refactor_v2/components/LeftPane/StockListItem.tsx`
-2. `client/src/refactor_v2/api/watchlist.ts`
-3. 可能需要添加 `react-swipeable` 或类似库
+1. `client/src/refactor_v2/components/LeftPane/StockListItem.tsx` - 添加拖拽功能
+2. `client/src/refactor_v2/components/LeftPane/index.tsx` - 添加底部删除区域
+3. `client/src/refactor_v2/api/watchlist.ts` - 删除 API 调用
 
-### 参考旧实现
-查看旧的组件实现: `client/src/components/stock/StockListItem.tsx`
+### 实现方案: react-dnd 拖拽删除 (推荐)
 
-### 实现方案选择
-**方案 A: 左滑删除 (推荐)**
-- 类似 iOS 原生左滑删除体验
-- 需要引入手势库
+```tsx
+// 1. 股票项添加 useDrag
+import { useDrag } from "react-dnd";
 
-**方案 B: 右键菜单 / 长按**
-- 右键或长按弹出 "删除" 选项
-- 实现简单但不够直观
+function StockListItem({ stock }) {
+  const [{ isDragging }, drag] = useDrag(() => ({
+    type: "STOCK_ITEM",
+    item: { code: stock.code },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  }));
+  
+  return <div ref={drag} style={{ opacity: isDragging ? 0.5 : 1 }}>...</div>;
+}
 
-**方案 C: 删除按钮**
-- hover 时显示删除图标
-- 简单但 hover 状态有冲突
+// 2. 底部添加删除区域 useDrop
+import { useDrop } from "react-dnd";
+
+function DeleteZone({ onDelete }) {
+  const [{ isOver }, drop] = useDrop(() => ({
+    accept: "STOCK_ITEM",
+    drop: (item) => onDelete(item.code),
+    collect: (monitor) => ({
+      isOver: monitor.isOver(),
+    }),
+  }));
+  
+  return (
+    <div 
+      ref={drop}
+      className={`delete-zone ${isOver ? 'active' : ''}`}
+    >
+      🗑️ 拖到这里删除
+    </div>
+  );
+}
+```
+
+### 样式建议
+
+```css
+.delete-zone {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: rgba(255, 0, 0, 0.1);
+  border-top: 2px dashed var(--color-down);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.delete-zone.active {
+  opacity: 1;
+  background: rgba(255, 0, 0, 0.3);
+}
+```
+
+### 依赖安装
+```bash
+pnpm add react-dnd react-dnd-html5-backend
+```
 
 ### 验证方法
 - 添加股票到自选
-- 使用实现的删除方式删除
+- 长按/拖拽股票项
+- 拖到底部删除区域
 - 确认从列表和后端都正确移除
 
 ---

@@ -17,11 +17,39 @@ export function useAISessions(stockCode?: string) {
 }
 
 // 获取聊天历史
-export function useAIHistory(sessionId?: string) {
+export function useAIHistory(options?: {
+  sessionId?: string;
+  stockCode?: string;
+}) {
+  const sessionId = options?.sessionId;
+  const stockCode = options?.stockCode;
   return useQuery({
-    queryKey: ["ai", "history", sessionId],
+    queryKey: ["ai", "history", sessionId ?? "latest", stockCode ?? "all"],
     queryFn: () =>
-      api.ai.getHistory.query(sessionId ? { sessionId } : undefined),
+      api.ai.getHistory.query(
+        sessionId || stockCode
+          ? { sessionId: sessionId || undefined, stockCode: stockCode || undefined }
+          : undefined
+      ),
+    enabled: Boolean(sessionId || stockCode),
+  });
+}
+
+// 获取当前工具执行进度
+export function useActiveTodoRun(sessionId?: string, isPolling?: boolean) {
+  return useQuery({
+    queryKey: ["ai", "todo", "active", sessionId],
+    queryFn: () => api.ai.getActiveTodoRun.query({ sessionId: sessionId! }),
+    enabled: !!sessionId,
+    refetchInterval: isPolling ? 1000 : 3000,
+  });
+}
+
+// 获取最近一次完成的工具执行进度
+export function useLatestTodoRun(sessionId?: string) {
+  return useQuery({
+    queryKey: ["ai", "todo", "latest", sessionId],
+    queryFn: () => api.ai.getLatestTodoRun.query({ sessionId: sessionId! }),
     enabled: !!sessionId,
   });
 }

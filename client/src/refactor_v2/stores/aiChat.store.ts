@@ -9,24 +9,46 @@ export const useAIChatStore = create<AIChatStore>()(
       messages: [],
       isLoading: false,
       error: null,
+      sessionId: null,
+      thinkHard: false,
+      followUpSuggestions: [],
 
-      addMessage: message =>
+      addMessage: message => {
+        const id = `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         set(state => ({
           messages: [
             ...state.messages,
             {
               ...message,
-              id: `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+              id,
               createdAt: Date.now(),
             } satisfies AIMessage,
           ],
+        }));
+        return id;
+      },
+
+      setMessages: messages => set({ messages }),
+
+      updateMessage: (id, updates) =>
+        set(state => ({
+          messages: state.messages.map(message =>
+            message.id === id ? { ...message, ...updates } : message
+          ),
         })),
 
       setIsLoading: loading => set({ isLoading: loading }),
 
       setError: error => set({ error }),
 
-      clearMessages: () => set({ messages: [] }),
+      setSessionId: sessionId => set({ sessionId }),
+
+      setThinkHard: thinkHard => set({ thinkHard }),
+
+      setFollowUpSuggestions: suggestions =>
+        set({ followUpSuggestions: suggestions }),
+
+      clearMessages: () => set({ messages: [], followUpSuggestions: [] }),
     }),
     { name: "ai-chat-store" }
   )
