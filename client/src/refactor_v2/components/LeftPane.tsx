@@ -74,16 +74,16 @@ const WatchlistRow: React.FC<WatchlistRowProps> = ({
           : "border-l-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           } hover:bg-[var(--bg-tertiary)]/60`}
       >
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold">{item.symbol}</span>
-            <span className="text-xs text-[var(--text-muted)]">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+          <div className="min-w-0 flex flex-col">
+            <span className="text-sm font-semibold truncate">{item.symbol}</span>
+            <span className="text-xs text-[var(--text-muted)] truncate">
               {resolvedName}
             </span>
           </div>
           {showChange && (
             <span
-              className={`text-xs font-medium price-display ${isUp ? "text-[var(--color-up)]" : "text-[var(--color-down)]"
+              className={`w-[8ch] text-right text-xs font-medium price-display ${isUp ? "text-[var(--color-up)]" : "text-[var(--color-down)]"
                 }`}
             >
               {hasChange

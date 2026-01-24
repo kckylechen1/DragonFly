@@ -7,9 +7,20 @@ interface ScrollNumberProps {
   suffix?: string;
   className?: string;
   duration?: number;
+  minWidthCh?: number;
 }
 
 const DIGITS = "0123456789";
+
+const CHAR_WIDTH: Record<string, string> = {
+  ".": "0.5ch",
+  ",": "0.5ch",
+  "-": "1ch",
+  "+": "1ch",
+  "%": "1ch",
+  "¥": "1ch",
+  "$": "1ch",
+};
 
 const SlotDigit = memo(function SlotDigit({
   digit,
@@ -18,11 +29,14 @@ const SlotDigit = memo(function SlotDigit({
   digit: string;
   duration?: number;
 }) {
-  if (!DIGITS.includes(digit)) {
+  const isNumber = DIGITS.includes(digit);
+  const width = isNumber ? "1ch" : (CHAR_WIDTH[digit] ?? "1ch");
+
+  if (!isNumber) {
     return (
       <span
         className="inline-block text-center"
-        style={{ width: digit === "." ? "0.35em" : "0.6em" }}
+        style={{ width }}
       >
         {digit}
       </span>
@@ -36,7 +50,7 @@ const SlotDigit = memo(function SlotDigit({
       className="inline-block overflow-hidden"
       style={{
         height: "1.15em",
-        width: "0.6em",
+        width: "1ch",
         lineHeight: "1.15em",
       }}
     >
@@ -71,12 +85,16 @@ export function ScrollNumber({
   suffix = "",
   className = "",
   duration = 500,
+  minWidthCh,
 }: ScrollNumberProps) {
   const formattedValue = value.toFixed(decimals);
   const characters = formattedValue.split("");
 
   return (
-    <span className={`inline-flex items-baseline ${className}`}>
+    <span
+      className={`inline-flex items-baseline justify-end ${className}`}
+      style={minWidthCh ? { minWidth: `${minWidthCh}ch` } : undefined}
+    >
       {prefix}
       {characters.map((char, index) => (
         <SlotDigit

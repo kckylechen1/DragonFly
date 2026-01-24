@@ -16,7 +16,7 @@ export const StockHeader: React.FC<StockHeaderProps> = ({ quote }) => {
         <h2 className="text-2xl font-bold text-[var(--text-primary)]">
           {quote.name || quote.symbol}
         </h2>
-        <span className="text-xs text-[var(--text-muted)] font-mono">
+        <span className="text-xs text-[var(--text-muted)] price-display">
           {quote.symbol}
         </span>
       </div>
@@ -25,10 +25,10 @@ export const StockHeader: React.FC<StockHeaderProps> = ({ quote }) => {
           value={quote.price}
           decimals={2}
           prefix="¥"
-          className="text-2xl font-semibold text-[var(--text-primary)] price-display"
+          className="text-2xl font-bold text-[var(--text-primary)] price-display"
         />
         <span
-          className={`flex items-center gap-1 text-sm price-display ${
+          className={`flex items-center gap-1 text-sm font-semibold ${
             isUp ? "text-[var(--color-up)]" : "text-[var(--color-down)]"
           }`}
         >
@@ -37,13 +37,13 @@ export const StockHeader: React.FC<StockHeaderProps> = ({ quote }) => {
           ) : (
             <TrendingDown className="w-4 h-4" />
           )}
-          {isUp ? "+" : ""}
           <AnimatedNumber
             value={quote.change}
             decimals={2}
-            className="font-semibold"
+            prefix={isUp ? "+" : ""}
+            className="price-display"
           />
-          <span>
+          <span className="price-display">
             ({isUp ? "+" : ""}
             {quote.changePercent.toFixed(2)}%)
           </span>

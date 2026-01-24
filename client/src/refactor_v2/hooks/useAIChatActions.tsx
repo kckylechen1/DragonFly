@@ -14,12 +14,12 @@ interface StockContext {
     preClose?: number;
     volume?: number;
     amount?: number;
-    turnoverRate?: number;
+    turnoverRate?: number | null;
     pe?: number | null;
     pb?: number | null;
     marketCap?: number | null;
     circulationMarketCap?: number | null;
-    volumeRatio?: number;
+    volumeRatio?: number | null;
   } | null;
   capitalFlow?: {
     mainNetInflow?: number | null;

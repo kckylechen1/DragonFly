@@ -92,7 +92,7 @@ export const AIChatPanel: React.FC = () => {
         role: message.role,
         content: message.content,
         createdAt: Date.now() - (historyData.messages.length - index) * 1000,
-        status: "done",
+        status: "done" as const,
       }));
 
     setMessages(normalized);
@@ -157,9 +157,9 @@ export const AIChatPanel: React.FC = () => {
     setFollowUpSuggestions([]);
     setAutoLoadHistory(false);
     try {
-      const result = await createSessionMutation.mutateAsync({
-        stockCode: currentSymbol || undefined,
-      });
+      const result = await createSessionMutation.mutateAsync(
+        currentSymbol || undefined
+      );
       setSessionId(result.sessionId);
     } catch {
       setSessionId(null);

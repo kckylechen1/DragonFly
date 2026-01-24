@@ -89,6 +89,13 @@ export const StockInfoPanel: React.FC<StockInfoPanelProps> = ({
   );
 };
 
+function splitNumeric(value?: string): { num: string; rest: string } {
+  if (!value) return { num: "--", rest: "" };
+  const match = value.match(/^([+-]?[0-9.,]+)(.*)$/);
+  if (!match) return { num: value, rest: "" };
+  return { num: match[1], rest: match[2] };
+}
+
 function DataCellInline({
   label,
   value,
@@ -102,11 +109,14 @@ function DataCellInline({
   if (isUp === true) valueColor = "text-[var(--color-up)]";
   if (isUp === false) valueColor = "text-[var(--color-down)]";
 
+  const { num, rest } = splitNumeric(value);
+
   return (
     <span className="whitespace-nowrap">
       <span className="text-[var(--text-muted)]">{label}</span>
-      <span className={`ml-1 tabular-nums ${valueColor}`}>
-        {value || "--"}
+      <span className={`ml-1 ${valueColor}`}>
+        <span className="price-display">{num}</span>
+        {rest && <span>{rest}</span>}
       </span>
     </span>
   );

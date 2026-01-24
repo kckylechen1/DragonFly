@@ -9,6 +9,24 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { createSmartAgent } from "./agent";
 import type { StreamEvent } from "@shared/stream";
+import type { Response } from "express";
+
+// CORS 安全配置
+const ALLOWED_ORIGINS = process.env.CORS_ALLOWED_ORIGINS
+  ? process.env.CORS_ALLOWED_ORIGINS.split(",").map(o => o.trim())
+  : ["http://localhost:6888", "http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:6888", "http://127.0.0.1:3000", "http://127.0.0.1:5173"];
+
+function setSecureCorsHeaders(req: express.Request, res: Response): void {
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  } else if (process.env.NODE_ENV === "development") {
+    // 开发环境允许所有 localhost
+    res.setHeader("Access-Control-Allow-Origin", origin || "*");
+  }
+  // 生产环境不设置 CORS 头，浏览器会阻止跨域请求
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+}
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -44,7 +62,7 @@ async function startServer() {
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
     res.setHeader("X-Accel-Buffering", "no");
-    res.setHeader("Access-Control-Allow-Origin", "*");
+    setSecureCorsHeaders(req, res);
     res.flushHeaders();
 
     const getQueryString = (value: unknown): string | undefined => {
@@ -182,7 +200,7 @@ async function startServer() {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
-    res.setHeader("Access-Control-Allow-Origin", "*");
+    setSecureCorsHeaders(req, res);
     res.setHeader("Access-Control-Expose-Headers", "X-Session-Id");
 
     const {
