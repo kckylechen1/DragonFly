@@ -89,10 +89,44 @@
 ## 🔄 执行顺序
 
 ```
+Phase 0: 研究阶段（阅读论文和仓库）
 Phase 1: TASK-001 → TASK-002 → TASK-003 (基础优化)
 Phase 2: TASK-004 (路由器)
 Phase 3: TASK-005 → TASK-006 (集成增强)
+Phase 4: TASK-007 (Grok 优先策略 + 对比测试)
 ```
+
+---
+
+## 🎯 模型选择策略（重要！）
+
+基于今日测试结果，**Grok 在以下方面优于 GLM**：
+
+| 维度 | Grok | GLM |
+|------|------|-----|
+| **速度** | 10-30s | 50-150s |
+| **简洁度** | 更高信息密度 | 偏冗长 |
+| **风险识别** | 更敏锐（主力出货等） | 偏乐观 |
+| **训练数据** | 更新（2024-10） | 较旧（2024-05） |
+
+### 默认策略
+
+```typescript
+// 默认使用 Grok
+const DEFAULT_MODEL = 'grok';
+
+// 仅在以下情况使用 GLM：
+// 1. 需要超详细报告（3000+ 字）
+// 2. 成本敏感场景
+// 3. Grok API 不可用时的 fallback
+```
+
+### 需要实现的改动
+
+在所有 Agent 调用中：
+1. 默认使用 `ENV.grokApiUrl` + `ENV.grokModel`
+2. GLM 作为备选/对比模型
+3. 共识模式中 Grok 权重更高
 
 ---
 
@@ -878,6 +912,230 @@ git push origin feature/agent-optimization
 
 ---
 
-**预计完成时间**: 8-12 小时  
+**预计完成时间**: 10-14 小时  
 **执行模式**: 过夜执行  
 **审查 Agent**: 🟣 Amp
+
+---
+
+# TASK-007: Grok 优先策略 + 模型对比测试
+
+## 负责 Agent: 🟢 Codex
+
+## 背景
+
+今日测试结果显示 Grok 在速度、简洁度、风险识别方面优于 GLM：
+- 速度：10-30s vs 50-150s（快 5-14 倍）
+- 输出：信息密度更高
+- 风险识别：更敏锐发现"主力出货"等信号
+
+## 目标
+
+- [ ] 创建对比测试脚本，自动对比 Grok vs GLM
+- [ ] 修改 SmartAgent 默认使用 Grok
+- [ ] GLM 作为备选/深度分析模型
+- [ ] 在共识模式中给 Grok 更高权重
+
+## 需要创建的文件
+
+### 新建: `server/scripts/test-model-benchmark.ts`
+
+```typescript
+/**
+ * Grok vs GLM 性能基准测试
+ * 对比速度、输出质量、风险识别能力
+ */
+
+import { ENV } from "../_core/env";
+import { analyzeStock } from "../_core/technicalAnalysis";
+import * as eastmoney from "../eastmoney";
+import * as fundflow from "../fundflow";
+
+interface BenchmarkResult {
+  model: string;
+  latency: number;
+  outputLength: number;
+  tokens: number;
+  hasRiskWarning: boolean;
+  hasActionableAdvice: boolean;
+  conclusion: string;
+}
+
+async function runBenchmark(
+  model: 'grok' | 'glm',
+  stockCode: string,
+  dataContext: string
+): Promise<BenchmarkResult> {
+  const configs = {
+    grok: { url: ENV.grokApiUrl, key: ENV.grokApiKey, model: ENV.grokModel },
+    glm: { url: ENV.glmApiUrl, key: ENV.glmApiKey, model: ENV.glmModel },
+  };
+
+  const config = configs[model];
+  const startTime = Date.now();
+
+  const response = await fetch(`${config.url}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${config.key}`,
+    },
+    body: JSON.stringify({
+      model: config.model,
+      messages: [
+        { role: 'system', content: '你是专业A股技术分析师。请简洁输出结论、理由和具体点位。' },
+        { role: 'user', content: `分析以下股票：\n${dataContext}` },
+      ],
+      temperature: 0.7,
+      max_tokens: 4000,
+    }),
+  });
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content || '';
+  const latency = Date.now() - startTime;
+
+  return {
+    model,
+    latency,
+    outputLength: content.length,
+    tokens: data.usage?.total_tokens || 0,
+    hasRiskWarning: /风险|超买|警惕|回调|止损/.test(content),
+    hasActionableAdvice: /入场|止损|目标|点位|建议.*\d+/.test(content),
+    conclusion: content.slice(0, 200),
+  };
+}
+
+async function main() {
+  const testCases = ['600879', '000066', '300308'];
+
+  console.log('🧪 Grok vs GLM 性能基准测试\n');
+  console.log('='.repeat(70));
+
+  for (const code of testCases) {
+    console.log(`\n📊 测试股票: ${code}`);
+    console.log('-'.repeat(70));
+
+    // 获取数据
+    const [tech, quote, fundFlow] = await Promise.all([
+      analyzeStock(code),
+      eastmoney.getStockQuote(code),
+      fundflow.getStockFundFlow(code),
+    ]);
+
+    if (!tech) {
+      console.log(`❌ 数据获取失败: ${code}`);
+      continue;
+    }
+
+    const dataContext = `
+股票: ${tech.name}(${code})
+收盘: ${tech.price}元, ${tech.changePct}%
+MA5: ${tech.ma5}, MA10: ${tech.ma10}, MA20: ${tech.ma20}
+MACD: ${tech.macdIsRed ? '红柱' : '绿柱'}
+RSI: ${tech.rsi}
+资金: 主力${fundFlow?.mainNetInflow ? (fundFlow.mainNetInflow / 100000000).toFixed(2) : 'N/A'}亿
+`;
+
+    // 并行测试
+    const [grokResult, glmResult] = await Promise.all([
+      runBenchmark('grok', code, dataContext),
+      runBenchmark('glm', code, dataContext),
+    ]);
+
+    // 输出对比
+    console.log(`
+| 指标 | Grok | GLM | 胜者 |
+|------|------|-----|------|
+| 耗时 | ${(grokResult.latency / 1000).toFixed(1)}s | ${(glmResult.latency / 1000).toFixed(1)}s | ${grokResult.latency < glmResult.latency ? '🏆 Grok' : '🏆 GLM'} |
+| 长度 | ${grokResult.outputLength}字 | ${glmResult.outputLength}字 | - |
+| Tokens | ${grokResult.tokens} | ${glmResult.tokens} | ${grokResult.tokens < glmResult.tokens ? '🏆 Grok' : '🏆 GLM'} |
+| 风险提示 | ${grokResult.hasRiskWarning ? '✅' : '❌'} | ${glmResult.hasRiskWarning ? '✅' : '❌'} | - |
+| 可执行建议 | ${grokResult.hasActionableAdvice ? '✅' : '❌'} | ${glmResult.hasActionableAdvice ? '✅' : '❌'} | - |
+`);
+  }
+
+  console.log('='.repeat(70));
+  console.log('✅ 基准测试完成');
+}
+
+main().catch(console.error);
+```
+
+## 需要修改的文件
+
+### 文件: `server/_core/agent/smart-agent.ts`
+
+找到模型选择逻辑，修改默认使用 Grok：
+
+```typescript
+// 当前可能是
+const defaultModel = ENV.glmModel;
+
+// 修改为
+const defaultModel = ENV.grokModel || 'grok-4-1-fast-reasoning';
+const defaultApiUrl = ENV.grokApiUrl || 'https://api.x.ai/v1';
+const defaultApiKey = ENV.grokApiKey;
+
+// fallback 到 GLM
+if (!defaultApiKey) {
+  console.warn('[SmartAgent] Grok API key not found, falling back to GLM');
+  // 使用 GLM 配置
+}
+```
+
+### 文件: `server/_core/agent/consensus-analysis.ts`
+
+在共识计算中给 Grok 更高权重：
+
+```typescript
+// 修改 calculateAgreement 函数
+function calculateWeightedAgreement(
+  conclusions: { model: string; conclusion: string }[]
+): { recommendation: string; confidence: number } {
+  const weights = {
+    grok: 1.5,  // Grok 权重更高
+    glm: 1.0,
+    qwen: 0.8,
+  };
+
+  const votes = new Map<string, number>();
+  
+  for (const { model, conclusion } of conclusions) {
+    const weight = weights[model as keyof typeof weights] || 1.0;
+    votes.set(conclusion, (votes.get(conclusion) || 0) + weight);
+  }
+
+  const sorted = [...votes.entries()].sort((a, b) => b[1] - a[1]);
+  const totalWeight = [...votes.values()].reduce((a, b) => a + b, 0);
+
+  return {
+    recommendation: sorted[0][0],
+    confidence: sorted[0][1] / totalWeight,
+  };
+}
+```
+
+## 验证
+
+```bash
+# 运行基准测试
+npx tsx server/scripts/test-model-benchmark.ts
+
+# 期望输出：Grok 在速度上明显领先
+```
+
+---
+
+## 📊 最终验收标准
+
+完成所有 7 个任务后，应该满足：
+
+1. **数据强制层生效** - 模型不再使用训练数据，只用提供的实时数据
+2. **复杂度评估更准** - "CPU逻辑"等复杂查询被正确分类
+3. **提示词可切换** - 可选择简洁/详细模式
+4. **路由器记录历史** - 查询历史保存到 `data/query-history.json`
+5. **共识模式可用** - 关键决策可触发 3 模型投票
+6. **并行推理可用** - 可从 4 个角度分析
+7. **Grok 优先** - 默认使用 Grok，速度提升 5 倍以上
+
