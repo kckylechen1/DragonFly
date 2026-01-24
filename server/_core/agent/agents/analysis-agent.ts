@@ -11,6 +11,10 @@
 import { BaseAgent } from "../base-agent";
 import { executeStockTool, stockTools } from "../../stockTools";
 import type { ToolDefinition } from "../types";
+import {
+  getPromptByStyle,
+  type PromptStyle,
+} from "../../prompts/stock-analysis-prompts";
 
 const DATA_ENFORCEMENT_PREFIX = `
 ⚠️ 数据使用规则（必须遵守）：
@@ -204,11 +208,15 @@ const ANALYSIS_TOOLS: ToolDefinition[] = stockTools.filter(t =>
 ) as ToolDefinition[];
 
 export class AnalysisAgent extends BaseAgent {
+  private promptStyle: PromptStyle = "concise";
+
   constructor(detailMode: boolean = false) {
+    const promptStyle: PromptStyle = detailMode ? "detailed" : "concise";
+    const analysisPrompt = getPromptByStyle(promptStyle);
     const systemPrompt = detailMode
       ? ANALYSIS_SYSTEM_PROMPT_DETAILED
       : ANALYSIS_SYSTEM_PROMPT;
-    const fullPrompt = DATA_ENFORCEMENT_PREFIX + systemPrompt;
+    const fullPrompt = `${DATA_ENFORCEMENT_PREFIX}${systemPrompt}\n\n${analysisPrompt}`;
 
     super({
       name: "AnalysisAgent",
@@ -220,6 +228,7 @@ export class AnalysisAgent extends BaseAgent {
       parallelToolCalls: true,
     });
 
+    this.promptStyle = promptStyle;
     this.registerAnalysisTools();
   }
 
