@@ -11,20 +11,30 @@ import { createSmartAgent } from "./agent";
 import type { StreamEvent } from "@shared/stream";
 import type { Response } from "express";
 
-// CORS 安全配置
-const ALLOWED_ORIGINS = process.env.CORS_ALLOWED_ORIGINS
+// CORS 安全配置 - 动态端口支持
+const CORS_ENV_ORIGINS = process.env.CORS_ALLOWED_ORIGINS
   ? process.env.CORS_ALLOWED_ORIGINS.split(",").map(o => o.trim())
-  : ["http://localhost:6888", "http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:6888", "http://127.0.0.1:3000", "http://127.0.0.1:5173"];
+  : [];
+
+function isLocalOrigin(origin: string): boolean {
+  // 允许所有 localhost 和 127.0.0.1 的端口
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+}
 
 function setSecureCorsHeaders(req: express.Request, res: Response): void {
   const origin = req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+  if (!origin) return;
+
+  // 1. 检查环境变量白名单
+  if (CORS_ENV_ORIGINS.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
-  } else if (process.env.NODE_ENV === "development") {
-    // 开发环境允许所有 localhost
-    res.setHeader("Access-Control-Allow-Origin", origin || "*");
   }
-  // 生产环境不设置 CORS 头，浏览器会阻止跨域请求
+  // 2. 开发环境允许所有本地端口
+  else if (process.env.NODE_ENV !== "production" && isLocalOrigin(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+  // 3. 生产环境必须在白名单中
+
   res.setHeader("Access-Control-Allow-Credentials", "true");
 }
 
