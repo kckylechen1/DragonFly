@@ -147,6 +147,17 @@ export async function* streamChatWithGrok(
  * 构建系统提示
  */
 function buildSystemPrompt(stockData?: string): string {
+  const DATA_ENFORCEMENT_PREFIX = `
+⚠️ 数据使用规则（必须遵守）：
+1. 你的分析只能基于下面提供的实时数据
+2. 禁止使用你训练集中的历史数据
+3. 禁止说「根据我的数据」「在我的训练中」等表述
+4. 如果数据不足，明确说「无法判断」
+5. 每个结论都要有数据支撑
+
+今日日期：${new Date().toISOString().split("T")[0]}
+`;
+
   const now = new Date();
   const dateStr = now.toLocaleDateString("zh-CN", {
     year: "numeric",
@@ -157,7 +168,7 @@ function buildSystemPrompt(stockData?: string): string {
     minute: "2-digit",
   });
 
-  return `你是"小A"，一个A股短线操盘手AI助手。性格特点：果断、直接、不废话。
+  return `${DATA_ENFORCEMENT_PREFIX}你是"小A"，一个A股短线操盘手AI助手。性格特点：果断、直接、不废话。
 
 【当前时间】${dateStr}
 
