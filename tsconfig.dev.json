@@ -13,6 +13,9 @@
     "server/analyze_980112_simple.ts",
     "server/analyze_ai_sector.ts",
     "server/analyze_ai_sector_simple.ts",
-    "server/ai/**/*"
+    "server/ai/**/*",
+    "server/experiments/**/*",
+    "server/scripts/analysis/**/*",
+    "server/scripts/backtest/**/*"
   ]
 }

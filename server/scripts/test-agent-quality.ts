@@ -50,7 +50,7 @@ async function testAgentResponse() {
                     fullResponse += event.data;
                 }
                 if (event.type === "tool_call") {
-                    toolCalls.push(event.name || "unknown");
+                    toolCalls.push(event.data?.name || "unknown");
                 }
                 if (event.type === "thinking") {
                     console.log(`   💭 ${event.data}`);
