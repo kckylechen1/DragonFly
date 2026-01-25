@@ -4,36 +4,43 @@
  */
 
 import { ENV } from "../env";
+import type { ModelId } from "./types";
 
 export interface ConsensusResult {
   recommendation: string;
   confidence: number; // 0-1
-  method: "unanimous" | "majority" | "arbitration";
+  method: "unanimous" | "majority" | "arbitration" | "insufficient";
   models: {
     grok: { conclusion: string; reasoning: string };
     glm: { conclusion: string; reasoning: string };
-    qwen: { conclusion: string; reasoning: string };
+    deepseek: { conclusion: string; reasoning: string };
   };
   arbitration?: string;
 }
 
+type ModelCallResult =
+  | { ok: true; content: string }
+  | { ok: false; error: string };
+
 async function callModel(
-  model: "grok" | "glm" | "qwen",
+  model: ModelId,
   systemPrompt: string,
   userMessage: string
-): Promise<string> {
+): Promise<ModelCallResult> {
   const configs = {
     grok: { url: ENV.grokApiUrl, key: ENV.grokApiKey, model: ENV.grokModel },
     glm: { url: ENV.glmApiUrl, key: ENV.glmApiKey, model: ENV.glmModel },
-    qwen: {
+    deepseek: {
       url: ENV.forgeApiUrl,
       key: ENV.forgeApiKey,
-      model: "Qwen/Qwen3-32B",
+      model: "deepseek-ai/DeepSeek-V3",
     },
   };
 
   const config = configs[model];
-  if (!config.key) return `${model} API key not configured`;
+  if (!config.key) {
+    return { ok: false, error: `${model} API key not configured` };
+  }
 
   try {
     const response = await fetch(`${config.url}/chat/completions`, {
@@ -55,13 +62,16 @@ async function callModel(
 
     if (!response.ok) {
       const errorText = await response.text();
-      return `${model} API error: ${response.status} - ${errorText}`;
+      return {
+        ok: false,
+        error: `${model} API error: ${response.status} - ${errorText}`,
+      };
     }
 
     const data = await response.json();
-    return data.choices?.[0]?.message?.content || "";
+    return { ok: true, content: data.choices?.[0]?.message?.content || "" };
   } catch (error: any) {
-    return `${model} request error: ${error.message}`;
+    return { ok: false, error: `${model} request error: ${error.message}` };
   }
 }
 
@@ -81,12 +91,12 @@ function extractConclusion(response: string): string {
 }
 
 function calculateWeightedAgreement(
-  conclusions: { model: string; conclusion: string }[]
+  conclusions: { model: ModelId; conclusion: string }[]
 ): { recommendation: string; confidence: number } {
   const weights = {
     grok: 1.5,
     glm: 1.0,
-    qwen: 0.8,
+    deepseek: 1.2, // DeepSeek-V3 权重提升
   };
 
   const votes = new Map<string, number>();
@@ -105,6 +115,22 @@ function calculateWeightedAgreement(
   };
 }
 
+function buildModelView(result: ModelCallResult): {
+  conclusion: string;
+  reasoning: string;
+} {
+  if (result.ok) {
+    return {
+      conclusion: extractConclusion(result.content),
+      reasoning: result.content.slice(0, 500),
+    };
+  }
+  return {
+    conclusion: "无明确结论",
+    reasoning: result.error,
+  };
+}
+
 export async function consensusAnalysis(
   query: string,
   stockCode: string,
@@ -120,33 +146,47 @@ export async function consensusAnalysis(
   const userMessage = `股票代码：${stockCode}\n\n${dataContext}\n\n${query}`;
 
   // 并行调用 3 个模型
-  const [grokResp, glmResp, qwenResp] = await Promise.all([
+  const [grokResult, glmResult, deepseekResult] = await Promise.all([
     callModel("grok", systemPrompt, userMessage),
     callModel("glm", systemPrompt, userMessage),
-    callModel("qwen", systemPrompt, userMessage),
+    callModel("deepseek", systemPrompt, userMessage),
   ]);
 
-  // 提取结论
-  const grokConc = extractConclusion(grokResp);
-  const glmConc = extractConclusion(glmResp);
-  const qwenConc = extractConclusion(qwenResp);
-
-  const conclusions = [
-    { model: "grok", conclusion: grokConc },
-    { model: "glm", conclusion: glmConc },
-    { model: "qwen", conclusion: qwenConc },
-  ];
-
   const models = {
-    grok: { conclusion: grokConc, reasoning: grokResp.slice(0, 500) },
-    glm: { conclusion: glmConc, reasoning: glmResp.slice(0, 500) },
-    qwen: { conclusion: qwenConc, reasoning: qwenResp.slice(0, 500) },
+    grok: buildModelView(grokResult),
+    glm: buildModelView(glmResult),
+    deepseek: buildModelView(deepseekResult),
   };
 
-  const allSame = grokConc === glmConc && glmConc === qwenConc;
-  if (allSame) {
+  const validResults = [
+    { model: "grok" as const, result: grokResult },
+    { model: "glm" as const, result: glmResult },
+    { model: "deepseek" as const, result: deepseekResult },
+  ].filter(
+    (entry): entry is { model: ModelId; result: { ok: true; content: string } } =>
+      entry.result.ok
+  );
+
+  if (validResults.length < 2) {
     return {
-      recommendation: grokConc,
+      recommendation: "数据不足",
+      confidence: 0,
+      method: "insufficient",
+      models,
+    };
+  }
+
+  const conclusions = validResults.map(entry => ({
+    model: entry.model,
+    conclusion: extractConclusion(entry.result.content),
+  }));
+
+  const allSame = conclusions.every(
+    entry => entry.conclusion === conclusions[0]?.conclusion
+  );
+  if (allSame && conclusions[0]) {
+    return {
+      recommendation: conclusions[0].conclusion,
       confidence: 1.0,
       method: "unanimous",
       models,
@@ -167,20 +207,29 @@ export async function consensusAnalysis(
   // 完全分歧 → 仲裁
   const arbitrationPrompt = `
 三个 AI 对 ${stockCode} 有不同看法：
-- Grok: ${grokConc}
-- GLM: ${glmConc}
-- Qwen: ${qwenConc}
+- Grok: ${models.grok.conclusion}
+- GLM: ${models.glm.conclusion}
+- DeepSeek: ${models.deepseek.conclusion}
 
 请综合分析，给出最终建议。结论必须是：买入/卖出/持有/观望/止损/止盈/加仓/减仓 之一。
 `;
 
-  const arbitration = await callModel("grok", "你是仲裁者。", arbitrationPrompt);
+  const arbitrationResult = await callModel(
+    "grok",
+    "你是仲裁者。",
+    arbitrationPrompt
+  );
+  const arbitrationText = arbitrationResult.ok
+    ? arbitrationResult.content
+    : arbitrationResult.error;
 
   return {
-    recommendation: extractConclusion(arbitration),
-    confidence: 0.5,
+    recommendation: arbitrationResult.ok
+      ? extractConclusion(arbitrationText)
+      : weighted.recommendation,
+    confidence: arbitrationResult.ok ? 0.5 : weighted.confidence,
     method: "arbitration",
     models,
-    arbitration,
+    arbitration: arbitrationText,
   };
 }
