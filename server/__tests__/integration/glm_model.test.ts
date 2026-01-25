@@ -2,8 +2,12 @@
  * GLM模型单独测试 - 完成剩余的8只股票测试
  */
 
-import { createSmartAgent } from "./_core/agent";
+import { describe, it } from "vitest";
+import { createSmartAgent } from "../../_core/agent";
 import * as fs from "fs";
+
+const runIntegration = process.env.RUN_INTEGRATION_TESTS === "true";
+const itIntegration = runIntegration ? it : it.skip;
 
 // GLM模型测试配置
 const GLM_TEST_CONFIG = {
@@ -164,5 +168,12 @@ ${
   }
 }
 
-// 运行测试
-main().catch(console.error);
+describe("integration.glm_model", () => {
+  itIntegration(
+    "runs GLM model batch",
+    async () => {
+      await main();
+    },
+    1000 * 60 * 10
+  );
+});

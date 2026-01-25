@@ -10,7 +10,22 @@
 
 import { BaseAgent } from "../base-agent";
 import { executeStockTool, stockTools } from "../../stockTools";
-import type { ToolDefinition } from "../types";
+import type { AgentConfig, ToolDefinition } from "../types";
+import {
+  getPromptByStyle,
+  type PromptStyle,
+} from "../../prompts/stock-analysis-prompts";
+
+const DATA_ENFORCEMENT_PREFIX = `
+⚠️ 数据使用规则（必须遵守）：
+1. 你的分析只能基于下面提供的实时数据
+2. 禁止使用你训练集中的历史数据
+3. 禁止说「根据我的数据」「在我的训练中」等表述
+4. 如果数据不足，明确说「无法判断」
+5. 每个结论都要有数据支撑
+
+今日日期：${new Date().toISOString().split("T")[0]}
+`;
 
 const ANALYSIS_SYSTEM_PROMPT = `你是一个专业的A股技术分析助手，擅长用结构化、客观的方式输出个股技术走势分析。
 
@@ -193,21 +208,28 @@ const ANALYSIS_TOOLS: ToolDefinition[] = stockTools.filter(t =>
 ) as ToolDefinition[];
 
 export class AnalysisAgent extends BaseAgent {
-  constructor(detailMode: boolean = false) {
+  private promptStyle: PromptStyle = "concise";
+
+  constructor(detailMode: boolean = false, config: Partial<AgentConfig> = {}) {
+    const promptStyle: PromptStyle = detailMode ? "detailed" : "concise";
+    const analysisPrompt = getPromptByStyle(promptStyle);
     const systemPrompt = detailMode
       ? ANALYSIS_SYSTEM_PROMPT_DETAILED
       : ANALYSIS_SYSTEM_PROMPT;
+    const fullPrompt = `${DATA_ENFORCEMENT_PREFIX}${systemPrompt}\n\n${analysisPrompt}`;
 
     super({
       name: "AnalysisAgent",
       description: "技术分析专家",
-      systemPrompt: systemPrompt,
+      systemPrompt: fullPrompt,
       tools: ANALYSIS_TOOLS,
       maxIterations: detailMode ? 10 : 8, // 详细模式允许更多迭代
       temperature: 0.5,
       parallelToolCalls: true,
+      ...config,
     });
 
+    this.promptStyle = promptStyle;
     this.registerAnalysisTools();
   }
 

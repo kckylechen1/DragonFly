@@ -2,8 +2,12 @@
  * AI Agent真实API测试 - 5只股票测试
  */
 
-import { createSmartAgent } from "./_core/agent";
+import { describe, it } from "vitest";
+import { createSmartAgent } from "../../_core/agent";
 import * as fs from "fs";
+
+const runIntegration = process.env.RUN_INTEGRATION_TESTS === "true";
+const itIntegration = runIntegration ? it : it.skip;
 
 // 测试配置
 const TEST_CONFIG = {
@@ -200,5 +204,12 @@ ${
   return report;
 }
 
-// 运行测试
-runRealTest().catch(console.error);
+describe("integration.real_api", () => {
+  itIntegration(
+    "runs real API batch",
+    async () => {
+      await runRealTest();
+    },
+    1000 * 60 * 20
+  );
+});

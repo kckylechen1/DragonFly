@@ -3,10 +3,14 @@
  * 测试100只随机股票，比较Grok和GLM模型表现
  */
 
+import { describe, it } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
-import { createSmartAgent } from "./_core/agent";
-import * as akshare from "./akshare";
+import { createSmartAgent } from "../../_core/agent";
+import * as akshare from "../../akshare";
+
+const runIntegration = process.env.RUN_INTEGRATION_TESTS === "true";
+const itIntegration = runIntegration ? it : it.skip;
 
 // 测试配置
 const TEST_CONFIG = {
@@ -777,3 +781,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 }
 
 export { main as runAIAgentTest };
+
+describe("ai_agents.backtest", () => {
+  itIntegration(
+    "runs AI agent backtest",
+    async () => {
+      await main();
+    },
+    1000 * 60 * 60
+  );
+});

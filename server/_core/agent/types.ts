@@ -7,6 +7,17 @@
 
 export type MessageRole = "system" | "user" | "assistant" | "tool";
 
+// ==================== 模型 & 复杂度类型 ====================
+
+export type ModelId = "grok" | "glm" | "deepseek";
+export type QueryComplexity = "simple" | "medium" | "complex";
+
+export interface LLMConfig {
+  url: string;
+  key: string;
+  model: string;
+}
+
 export interface ToolCall {
   id: string;
   type: "function";
@@ -60,10 +71,12 @@ export interface AgentConfig {
   maxTokens: number;
   temperature: number;
   model?: string;
+  llm?: LLMConfig;
   verbose?: boolean;
   parallelToolCalls?: boolean;
   toolBudget?: {
     simple: number; // 简单问题工具预算
+    medium?: number; // 中等问题工具预算
     complex: number; // 复杂问题工具预算
   };
 }
@@ -79,7 +92,7 @@ export interface AgentState {
   startTime: number;
   error?: string;
   toolsUsed: number; // 已使用的工具数量
-  queryComplexity?: "simple" | "complex"; // 查询复杂度
+  queryComplexity?: QueryComplexity; // 查询复杂度
 }
 
 // ==================== 任务类型 ====================

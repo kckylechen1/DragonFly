@@ -27,6 +27,17 @@ import { ChatMessage as BaseMessage } from "./grokClient";
 
 // ==================== ReAct 类型 ====================
 
+const DATA_ENFORCEMENT_PREFIX = `
+⚠️ 数据使用规则（必须遵守）：
+1. 你的分析只能基于下面提供的实时数据
+2. 禁止使用你训练集中的历史数据
+3. 禁止说「根据我的数据」「在我的训练中」等表述
+4. 如果数据不足，明确说「无法判断」
+5. 每个结论都要有数据支撑
+
+今日日期：${new Date().toISOString().split("T")[0]}
+`;
+
 interface ObservationData {
   type: "web_search" | "code_execution" | "database" | "cache";
   query?: string;
@@ -300,7 +311,7 @@ Confidence: ${t.confidence}
       )
       .join("\n");
 
-    const systemPrompt = `你是 ReAct Agent 的"思考师"，提供下一个 action。
+    const systemPrompt = `${DATA_ENFORCEMENT_PREFIX}你是 ReAct Agent 的"思考师"，提供下一个 action。
 
 每个轮子，你需要基于状态，决定是否需要控制封声或空邊封声，先去取了但是没有完成了你这一手的东西，下一步会最简洁、最直接、最业界的任务。
 
@@ -388,8 +399,7 @@ ${traceStr}
       )
       .join("\n\n");
 
-    const systemPrompt =
-      "你是一个A股短线操盘手。基于ReAct处理过程，给出专业、直接的买壳瓶建议。";
+    const systemPrompt = `${DATA_ENFORCEMENT_PREFIX}你是一个A股短线操盘手。基于ReAct处理过程，给出专业、直接的买壳瓶建议。`;
 
     const userPrompt = `重认问题: ${query}\n\nReAct 处理路径\uff1a\n${traceStr}\n\n请给出最终专业结论（买/卖/观望 + 具体点位）`;
 

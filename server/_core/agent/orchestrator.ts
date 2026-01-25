@@ -116,6 +116,9 @@ const ORCHESTRATOR_SYSTEM_PROMPT = `你是一个智能任务协调器，负责�
 → 简单问题，派发单个 analysis 任务即可
 `;
 
+const stripChatCompletions = (endpoint: string) =>
+  endpoint.replace(/\/chat\/completions$/, "");
+
 export class AgentOrchestrator extends BaseAgent {
   private taskRunner: TaskRunner;
   private orchestratorConfig: OrchestratorConfig;
@@ -152,6 +155,11 @@ export class AgentOrchestrator extends BaseAgent {
   private createAgent(type: string): BaseAgent {
     const modelPreference = this.getModelPreferenceForAgent(type);
     const modelConfig = selectModel(modelPreference);
+    const llmConfig = {
+      url: stripChatCompletions(modelConfig.endpoint),
+      key: modelConfig.apiKey,
+      model: modelConfig.model,
+    };
 
     console.log(
       `[Orchestrator] 任务 ${type} 使用模型: ${modelConfig.name} (${modelPreference.reason})`
@@ -159,13 +167,13 @@ export class AgentOrchestrator extends BaseAgent {
 
     switch (type) {
       case "research":
-        return new ResearchAgent();
+        return new ResearchAgent({ llm: llmConfig });
       case "analysis":
-        return new AnalysisAgent();
+        return new AnalysisAgent(false, { llm: llmConfig });
       case "backtest":
-        return new BacktestAgent();
+        return new BacktestAgent({ llm: llmConfig });
       default:
-        return new AnalysisAgent();
+        return new AnalysisAgent(false, { llm: llmConfig });
     }
   }
 

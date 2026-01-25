@@ -3,7 +3,11 @@
  * 测试Grok和GLM API是否可用
  */
 
-import { createSmartAgent } from "./_core/agent";
+import { describe, it } from "vitest";
+import { createSmartAgent } from "../../_core/agent";
+
+const runIntegration = process.env.RUN_INTEGRATION_TESTS === "true";
+const itIntegration = runIntegration ? it : it.skip;
 
 async function testAPIConnection() {
   console.log("🔗 测试AI API连接...\n");
@@ -55,5 +59,12 @@ async function testAPIConnection() {
   console.log("🔚 API连接测试完成");
 }
 
-// 运行测试
-testAPIConnection().catch(console.error);
+describe("integration.api_connection", () => {
+  itIntegration(
+    "runs API connection test",
+    async () => {
+      await testAPIConnection();
+    },
+    1000 * 60 * 5
+  );
+});

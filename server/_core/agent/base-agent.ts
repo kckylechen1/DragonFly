@@ -14,6 +14,7 @@ import type {
   AgentConfig,
   AgentState,
   AgentMessage,
+  QueryComplexity,
   ToolCall,
   ToolDefinition,
   ToolExecutor,
@@ -49,8 +50,9 @@ export abstract class BaseAgent {
       verbose: true,
       parallelToolCalls: true,
       toolBudget: {
-        simple: 4, // 简单问题最多 4 个工具
-        complex: 8, // 复杂问题最多 8 个工具
+        simple: 6, // 简单问题最多 6 个工具
+        medium: 9, // 中等问题最多 9 个工具
+        complex: 12, // 复杂问题最多 12 个工具
       },
       ...config,
     };
@@ -90,9 +92,41 @@ export abstract class BaseAgent {
   }
 
   /**
+   * 重置状态以开始新一轮对话 (P0-1 修复)
+   * 保留 messages 历史，但重置迭代状态
+   */
+  private beginTurn(): void {
+    this.state.iteration = 0;
+    this.state.isComplete = false;
+    this.state.error = undefined;
+    this.state.startTime = Date.now();
+    this.state.thinking = [];
+    this.state.toolsUsed = 0;
+    // P1-4 修复：限制消息历史防止 OOM
+    this.trimMessages();
+  }
+
+  /**
+   * P1-4: 限制消息数量防止无限增长
+   * 保留 system message + 最近 30 条对话
+   */
+  private trimMessages(): void {
+    const MAX_MESSAGES = 30;
+    const system = this.state.messages.filter(m => m.role === "system");
+    const others = this.state.messages.filter(m => m.role !== "system");
+    if (others.length > MAX_MESSAGES) {
+      this.state.messages = [...system, ...others.slice(-MAX_MESSAGES)];
+    }
+    // 同时限制 thinking 日志
+    if (this.state.thinking.length > 200) {
+      this.state.thinking = this.state.thinking.slice(-200);
+    }
+  }
+
+  /**
    * 分类查询复杂度
    */
-  private classifyQueryComplexity(userMessage: string): "simple" | "complex" {
+  private classifyQueryComplexity(userMessage: string): QueryComplexity {
     const message = userMessage.toLowerCase();
 
     // 简单查询特征
@@ -109,6 +143,9 @@ export abstract class BaseAgent {
     const complexPatterns = [
       /对比|比较|研究|调研|分析.*趋势|深度分析/i,
       /回测|测试.*策略/i,
+      /叠加|逻辑|基本面|估值|业绩|行业地位/i,
+      /CPU|芯片|产业链|供应链|深度|全面|综合|详细/i,
+      /为什么|怎么操作|止损|止盈|买入|卖出|选择/i,
       /扫描|寻找|发现/i,
       /多个|全部|市场|行业/i,
       /详细|全面|综合/i,
@@ -137,6 +174,7 @@ export abstract class BaseAgent {
    * 主入口：同步执行
    */
   async run(userMessage: string): Promise<string> {
+    this.beginTurn(); // P0-1 修复：重置状态
     this.state.messages.push({ role: "user", content: userMessage });
     this.state.queryComplexity = this.classifyQueryComplexity(userMessage);
     this.log(
@@ -180,6 +218,7 @@ export abstract class BaseAgent {
    * 流式执行
    */
   async *stream(userMessage: string): AsyncGenerator<StreamEvent> {
+    this.beginTurn(); // P0-1 修复：重置状态
     this.state.messages.push({ role: "user", content: userMessage });
     this.state.queryComplexity = this.classifyQueryComplexity(userMessage);
     yield {
@@ -259,9 +298,30 @@ export abstract class BaseAgent {
    * 调用 LLM
    */
   protected async callLLM(): Promise<LLMResponse> {
-    const apiUrl = ENV.glmApiUrl || "https://open.bigmodel.cn/api/paas/v4";
-    const apiKey = ENV.glmApiKey;
-    const model = this.config.model || ENV.glmModel || "glm-4.7";
+    const preferGrok = Boolean(ENV.grokApiKey);
+    const defaultConfig = {
+      url: preferGrok
+        ? ENV.grokApiUrl
+        : ENV.glmApiUrl || "https://open.bigmodel.cn/api/paas/v4",
+      key: preferGrok ? ENV.grokApiKey : ENV.glmApiKey,
+      model:
+        (preferGrok ? ENV.grokModel : ENV.glmModel) ||
+        (preferGrok ? "grok-4-1-fast-reasoning" : "glm-4.7"),
+    };
+
+    const llmConfig = this.config.llm ?? defaultConfig;
+    const apiUrl = llmConfig.url;
+    const apiKey = llmConfig.key;
+    const model = this.config.model || llmConfig.model;
+
+    if (!apiKey) {
+      throw new Error("LLM API key not configured.");
+    }
+
+    const normalizedUrl = apiUrl.replace(/\/$/, "");
+    const endpoint = normalizedUrl.endsWith("/chat/completions")
+      ? normalizedUrl
+      : `${normalizedUrl}/chat/completions`;
 
     const payload: any = {
       model,
@@ -275,7 +335,7 @@ export abstract class BaseAgent {
       payload.tool_choice = "auto";
     }
 
-    const response = await fetch(`${apiUrl}/chat/completions`, {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -327,7 +387,9 @@ export abstract class BaseAgent {
     const results = new Map<string, ToolExecutionResult>();
 
     // 检查工具预算
-    const maxTools = this.config.toolBudget![this.state.queryComplexity!];
+    const complexity = this.state.queryComplexity || "simple";
+    const budget = this.config.toolBudget!;
+    const maxTools = budget[complexity] ?? budget.complex;
     const remainingTools = maxTools - this.state.toolsUsed;
 
     if (remainingTools <= 0) {
@@ -446,7 +508,16 @@ export abstract class BaseAgent {
       throw new Error(`未知工具: ${name}`);
     }
 
-    const args = JSON.parse(argsStr || "{}");
+    // P0-2 修复：安全解析 JSON
+    let args: Record<string, any>;
+    try {
+      args = JSON.parse(argsStr || "{}");
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      // 返回错误信息让模型下一轮修正
+      return `工具参数 JSON 解析失败: ${errorMsg}. 原始参数: ${argsStr}`;
+    }
+
     this.log(`   执行: ${name}(${JSON.stringify(args).slice(0, 100)})`);
 
     const result = await executor(args);

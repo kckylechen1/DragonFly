@@ -2,8 +2,12 @@
  * 10只股票AI Agent测试 - 完整流程验证
  */
 
-import { createSmartAgent } from "./_core/agent";
+import { describe, it } from "vitest";
+import { createSmartAgent } from "../../_core/agent";
 import * as fs from "fs";
+
+const runIntegration = process.env.RUN_INTEGRATION_TESTS === "true";
+const itIntegration = runIntegration ? it : it.skip;
 
 // 测试股票 (精选10只代表性股票)
 const TEST_STOCKS = [
@@ -303,5 +307,12 @@ async function main() {
   }
 }
 
-// 运行测试
-main().catch(console.error);
+describe("integration.batch_10_stocks", () => {
+  itIntegration(
+    "runs 10-stock batch test",
+    async () => {
+      await main();
+    },
+    1000 * 60 * 30
+  );
+});

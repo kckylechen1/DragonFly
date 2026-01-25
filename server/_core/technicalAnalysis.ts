@@ -345,11 +345,11 @@ export async function analyzeStock(
     const entryAdviceText =
       entrySuggestions.length > 0
         ? entrySuggestions
-            .map(
-              e =>
-                `├─ 第${e.batch}批(${e.position}): ${e.trigger}，进场${e.entryPrice.toFixed(2)}元，止损${e.stopLoss.toFixed(2)}元`
-            )
-            .join("\n")
+          .map(
+            e =>
+              `├─ 第${e.batch}批(${e.position}): ${e.trigger}，进场${e.entryPrice.toFixed(2)}元，止损${e.stopLoss.toFixed(2)}元`
+          )
+          .join("\n")
         : "├─ 当前不建议进场";
 
     // 综合结论（硬编码规则）
@@ -371,7 +371,8 @@ export async function analyzeStock(
 ├─ 价格: ${today.close.toFixed(2)}元 (${today.changePct >= 0 ? "+" : ""}${today.changePct.toFixed(2)}%)
 ├─ 均线: MA5=${ma5.toFixed(2)} MA10=${ma10.toFixed(2)} MA20=${ma20.toFixed(2)}
 │  ${isMaBullish ? "✅ 多头排列" : "❌ 非多头排列"}
-├─ MACD: ${macdIsRed ? "🟢 红柱" : "🔴 绿柱"} ${macdCross === "golden" ? "🟢金叉" : macdCross === "dead" ? "🔴死叉" : ""}
+├─ MACD: DIF=${macdDif.toFixed(2)} DEA=${macdDea.toFixed(2)} 柱=${macdHistogram.toFixed(2)} ${macdIsRed ? "🟢红柱" : "🔴绿柱"} ${macdCross === "golden" ? "🟢金叉" : macdCross === "dead" ? "🔴死叉" : ""}
+├─ KDJ: K=${kdjK.toFixed(1)} D=${kdjD.toFixed(1)} J=${kdjJ.toFixed(1)} ${kdjCross === "golden" ? "🟢金叉" : kdjCross === "dead" ? "🔴死叉" : ""} ${kdjK > 80 ? "⚠️超买" : kdjK < 20 ? "🟢超卖" : ""}
 ├─ RSI: ${rsi.toFixed(1)} (${rsiZone === "overbought" ? "⚠️超买" : rsiZone === "oversold" ? "🟢超卖" : "正常"})
 └─ 量比: ${volRatio.toFixed(2)} (${volStatus === "shrink" ? "📉缩量" : volStatus === "expand" ? "📈放量" : "正常"})
 

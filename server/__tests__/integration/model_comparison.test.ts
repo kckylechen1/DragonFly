@@ -10,12 +10,16 @@
  * 用法: npx tsx server/test_model_comparison.ts
  */
 
-import { ENV } from "./_core/env";
-import { BaseAgent } from "./_core/agent/base-agent";
-import { executeStockTool, stockTools } from "./_core/stockTools";
-import type { ToolDefinition, AgentConfig } from "./_core/agent/types";
+import { describe, it } from "vitest";
+import { ENV } from "../../_core/env";
+import { BaseAgent } from "../../_core/agent/base-agent";
+import { executeStockTool, stockTools } from "../../_core/stockTools";
+import type { ToolDefinition, AgentConfig } from "../../_core/agent/types";
 
 // ==================== 模型配置 ====================
+
+const runIntegration = process.env.RUN_INTEGRATION_TESTS === "true";
+const itIntegration = runIntegration ? it : it.skip;
 
 const MODELS = {
   grok: {
@@ -399,4 +403,12 @@ async function main() {
   }
 }
 
-main();
+describe("integration.model_comparison", () => {
+  itIntegration(
+    "runs model comparison suite",
+    async () => {
+      await main();
+    },
+    1000 * 60 * 20
+  );
+});

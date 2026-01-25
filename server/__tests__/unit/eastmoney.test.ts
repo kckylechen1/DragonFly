@@ -9,7 +9,7 @@ vi.mock("axios", () => {
   };
 });
 
-import * as eastmoney from "./eastmoney";
+import * as eastmoney from "../../eastmoney";
 
 const mockAxiosGet = vi.mocked(axios.get);
 
@@ -114,7 +114,7 @@ describe("Eastmoney API", () => {
       },
     };
     mockAxiosGet.mockResolvedValueOnce({
-      data: `jQuery12345(${JSON.stringify(payload)});`,
+      data: `jQuery12345_12345(${JSON.stringify(payload)});`,
     } as any);
 
     const klines = await eastmoney.getKlineData("600519", "day");

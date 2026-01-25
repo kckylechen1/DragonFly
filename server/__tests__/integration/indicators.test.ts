@@ -4,6 +4,7 @@
  * 更新：使用 technicalindicators 库验证迁移
  */
 
+import { describe, expect, it } from "vitest";
 import { SMA, EMA, MACD, RSI, Stochastic } from "technicalindicators";
 
 // K线数据类型
@@ -208,6 +209,18 @@ function testGaugeScoring() {
   console.log(`预期得分: ${score3.toFixed(1)}`);
   console.log(Math.abs(score3) < 10 ? "✅ 评分逻辑正确" : "⚠️ 评分可能偏离");
 }
+
+describe("integration.indicators", () => {
+  it("runs indicator calculations without errors", () => {
+    testMACalculation();
+    testRSICalculation();
+    testMACDCalculation();
+    testKDJCalculation();
+    testEdgeCases();
+    testGaugeScoring();
+    expect(true).toBe(true);
+  });
+});
 
 /**
  * 测试均线排列判断
