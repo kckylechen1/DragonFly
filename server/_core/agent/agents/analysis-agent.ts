@@ -10,7 +10,7 @@
 
 import { BaseAgent } from "../base-agent";
 import { executeStockTool, stockTools } from "../../stockTools";
-import type { ToolDefinition } from "../types";
+import type { AgentConfig, ToolDefinition } from "../types";
 import {
   getPromptByStyle,
   type PromptStyle,
@@ -210,7 +210,7 @@ const ANALYSIS_TOOLS: ToolDefinition[] = stockTools.filter(t =>
 export class AnalysisAgent extends BaseAgent {
   private promptStyle: PromptStyle = "concise";
 
-  constructor(detailMode: boolean = false) {
+  constructor(detailMode: boolean = false, config: Partial<AgentConfig> = {}) {
     const promptStyle: PromptStyle = detailMode ? "detailed" : "concise";
     const analysisPrompt = getPromptByStyle(promptStyle);
     const systemPrompt = detailMode
@@ -226,6 +226,7 @@ export class AnalysisAgent extends BaseAgent {
       maxIterations: detailMode ? 10 : 8, // 详细模式允许更多迭代
       temperature: 0.5,
       parallelToolCalls: true,
+      ...config,
     });
 
     this.promptStyle = promptStyle;

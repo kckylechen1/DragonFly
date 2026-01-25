@@ -10,7 +10,7 @@
 
 import { BaseAgent } from "../base-agent";
 import { executeStockTool, stockTools } from "../../stockTools";
-import type { ToolDefinition } from "../types";
+import type { AgentConfig, ToolDefinition } from "../types";
 
 const BACKTEST_SYSTEM_PROMPT = `你是一个专业的量化回测分析师，擅长验证交易信号和策略的历史表现。
 
@@ -160,7 +160,7 @@ const BACKTEST_TOOLS: ToolDefinition[] = [
 ] as ToolDefinition[];
 
 export class BacktestAgent extends BaseAgent {
-  constructor() {
+  constructor(config: Partial<AgentConfig> = {}) {
     super({
       name: "BacktestAgent",
       description: "回测分析专家",
@@ -170,6 +170,7 @@ export class BacktestAgent extends BaseAgent {
       maxTokens: 8000,
       temperature: 0.3,
       parallelToolCalls: true,
+      ...config,
     });
 
     this.registerBacktestTools();

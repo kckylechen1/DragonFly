@@ -7,6 +7,17 @@
 
 export type MessageRole = "system" | "user" | "assistant" | "tool";
 
+// ==================== 模型 & 复杂度类型 ====================
+
+export type ModelId = "grok" | "glm" | "deepseek";
+export type QueryComplexity = "simple" | "medium" | "complex";
+
+export interface LLMConfig {
+  url: string;
+  key: string;
+  model: string;
+}
+
 export interface ToolCall {
   id: string;
   type: "function";
@@ -60,6 +71,7 @@ export interface AgentConfig {
   maxTokens: number;
   temperature: number;
   model?: string;
+  llm?: LLMConfig;
   verbose?: boolean;
   parallelToolCalls?: boolean;
   toolBudget?: {

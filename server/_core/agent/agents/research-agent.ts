@@ -10,7 +10,7 @@
 
 import { BaseAgent } from "../base-agent";
 import { executeStockTool, stockTools } from "../../stockTools";
-import type { ToolDefinition } from "../types";
+import type { AgentConfig, ToolDefinition } from "../types";
 
 const RESEARCH_SYSTEM_PROMPT = `你是一个专业的A股研究员，擅长收集多源数据并生成深度研究报告。
 
@@ -94,7 +94,7 @@ const RESEARCH_TOOLS: ToolDefinition[] = stockTools.filter(t =>
 ) as ToolDefinition[];
 
 export class ResearchAgent extends BaseAgent {
-  constructor() {
+  constructor(config: Partial<AgentConfig> = {}) {
     super({
       name: "ResearchAgent",
       description: "研究报告专家",
@@ -104,6 +104,7 @@ export class ResearchAgent extends BaseAgent {
       maxTokens: 8000,
       temperature: 0.4,
       parallelToolCalls: true,
+      ...config,
     });
 
     this.registerResearchTools();
