@@ -2,8 +2,12 @@
  * 分批AI Agent测试 - 5只股票x2模型 = 10次测试
  */
 
-import { createSmartAgent } from "./_core/agent";
+import { describe, it } from "vitest";
+import { createSmartAgent } from "../../_core/agent";
 import * as fs from "fs";
+
+const runIntegration = process.env.RUN_INTEGRATION_TESTS === "true";
+const itIntegration = runIntegration ? it : it.skip;
 
 // 测试股票 (5只)
 const TEST_STOCKS = [
@@ -169,5 +173,12 @@ ${
   }
 }
 
-// 运行测试
-main().catch(console.error);
+describe("integration.batch_5_stocks", () => {
+  itIntegration(
+    "runs 5-stock batch test",
+    async () => {
+      await main();
+    },
+    1000 * 60 * 15
+  );
+});

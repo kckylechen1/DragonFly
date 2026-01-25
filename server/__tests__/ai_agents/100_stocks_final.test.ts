@@ -4,7 +4,11 @@
  * 并发控制 + 错误处理 + 完整报告
  */
 
+import { describe, it } from "vitest";
 import * as fs from "fs";
+
+const runIntegration = process.env.RUN_INTEGRATION_TESTS === "true";
+const itIntegration = runIntegration ? it : it.skip;
 
 // 测试配置
 const TEST_CONFIG = {
@@ -247,7 +251,7 @@ async function main() {
     );
 
     // 导入AI Agent
-    const { createSmartAgent } = await import("./_core/agent");
+    const { createSmartAgent } = await import("../../_core/agent");
 
     // 测试结果存储
     const grokResults: any[] = [];
@@ -424,4 +428,12 @@ async function main() {
 }
 
 // 运行测试
-main().catch(console.error);
+describe("ai_agents.100_stocks_final", () => {
+  itIntegration(
+    "runs 100-stock batch",
+    async () => {
+      await main();
+    },
+    1000 * 60 * 60
+  );
+});

@@ -3,7 +3,11 @@
  * 不调用真实LLM API，使用模拟数据测试框架
  */
 
+import { describe, it } from "vitest";
 import * as fs from "fs";
+
+const runIntegration = process.env.RUN_INTEGRATION_TESTS === "true";
+const itIntegration = runIntegration ? it : it.skip;
 
 // 测试配置
 const TEST_CONFIG = {
@@ -629,5 +633,12 @@ async function main() {
   }
 }
 
-// 运行测试
-main().catch(console.error);
+describe("ai_agents.mock_backtest", () => {
+  itIntegration(
+    "runs mock backtest",
+    async () => {
+      await main();
+    },
+    1000 * 60 * 30
+  );
+});

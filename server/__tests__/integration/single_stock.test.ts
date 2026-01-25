@@ -2,7 +2,11 @@
  * 单股票AI Agent测试 - 快速验证
  */
 
-import { createSmartAgent } from "./_core/agent";
+import { describe, it } from "vitest";
+import { createSmartAgent } from "../../_core/agent";
+
+const runIntegration = process.env.RUN_INTEGRATION_TESTS === "true";
+const itIntegration = runIntegration ? it : it.skip;
 
 async function testSingleStock() {
   console.log("🚀 测试单只股票AI Agent功能\n");
@@ -34,5 +38,12 @@ async function testSingleStock() {
   }
 }
 
-// 运行测试
-testSingleStock().catch(console.error);
+describe("integration.single_stock", () => {
+  itIntegration(
+    "runs single stock test",
+    async () => {
+      await testSingleStock();
+    },
+    1000 * 60 * 5
+  );
+});

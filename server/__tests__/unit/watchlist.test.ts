@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { appRouter } from "./routers";
-import type { TrpcContext } from "./_core/context";
+import { appRouter } from "../../routers";
+import type { TrpcContext } from "../../_core/context";
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 const isOffline = process.env.TEST_OFFLINE === "true";
@@ -34,10 +34,22 @@ function createTestContext(): TrpcContext {
 
 const describeWatchlist = isOffline ? describe.skip : describe;
 
+async function ensureNotInWatchlist(
+  caller: ReturnType<typeof appRouter.createCaller>,
+  stockCode: string
+) {
+  const list = await caller.watchlist.list();
+  const existing = list.filter(item => item.stockCode === stockCode);
+  for (const item of existing) {
+    await caller.watchlist.remove({ id: item.id });
+  }
+}
+
 describeWatchlist("Watchlist", () => {
   it("should add stock to watchlist with all fields", async () => {
     const ctx = createTestContext();
     const caller = appRouter.createCaller(ctx);
+    await ensureNotInWatchlist(caller, "600519");
 
     const result = await caller.watchlist.add({
       stockCode: "600519",
@@ -52,6 +64,7 @@ describeWatchlist("Watchlist", () => {
   it("should add stock to watchlist with only required field", async () => {
     const ctx = createTestContext();
     const caller = appRouter.createCaller(ctx);
+    await ensureNotInWatchlist(caller, "000001");
 
     const result = await caller.watchlist.add({
       stockCode: "000001",
@@ -63,6 +76,7 @@ describeWatchlist("Watchlist", () => {
   it("should add stock to watchlist with partial optional fields", async () => {
     const ctx = createTestContext();
     const caller = appRouter.createCaller(ctx);
+    await ensureNotInWatchlist(caller, "002594");
 
     const result = await caller.watchlist.add({
       stockCode: "002594",

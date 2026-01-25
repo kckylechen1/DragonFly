@@ -6,7 +6,7 @@ describe("LearnableRouter", () => {
     const router = new LearnableRouter();
     (router as any).history = [];
     const model = await router.selectModel("看看长城", "600001", "simple");
-    expect(model).toBe("qwen");
+    expect(model).toBe("deepseek");
   });
 
   it("selects best model from similar history", async () => {

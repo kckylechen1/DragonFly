@@ -3,8 +3,12 @@
  * 验证牛股信号系统的准确性
  */
 
-import * as akshare from "./akshare";
+import { describe, it } from "vitest";
+import * as akshare from "../../akshare";
 import { SMA, RSI, MACD, Stochastic } from "technicalindicators";
+
+const runIntegration = process.env.RUN_INTEGRATION_TESTS === "true";
+const itIntegration = runIntegration ? it : it.skip;
 
 interface KlineData {
   date: string;
@@ -532,4 +536,12 @@ async function main() {
   console.log("═".repeat(80) + "\n");
 }
 
-main().catch(console.error);
+describe("integration.top_gainers_2025", () => {
+  itIntegration(
+    "runs top gainers backtest",
+    async () => {
+      await main();
+    },
+    1000 * 60 * 30
+  );
+});
