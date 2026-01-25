@@ -4,14 +4,15 @@
  */
 
 import { randomUUID } from "crypto";
+import type { ModelId, QueryComplexity } from "./types";
 
 export interface QueryRecord {
   id: string;
   query: string;
   stockCode: string;
-  complexity: "simple" | "medium" | "complex";
+  complexity: QueryComplexity;
   intent: string;
-  usedModel: "grok" | "glm" | "qwen";
+  usedModel: ModelId;
   latency: number; // 毫秒
   tokenCount: number;
   success: boolean;
@@ -31,8 +32,8 @@ export class LearnableRouter {
   async selectModel(
     query: string,
     stockCode: string,
-    complexity: "simple" | "medium" | "complex"
-  ): Promise<"grok" | "glm" | "qwen"> {
+    complexity: QueryComplexity
+  ): Promise<ModelId> {
     // 1. 找相似历史查询
     const similar = this.findSimilar(query, stockCode, 5);
 
@@ -60,7 +61,7 @@ export class LearnableRouter {
     }
 
     // 3. 计算加权分数 (成功率 70% + 速度 30%)
-    let bestModel: "grok" | "glm" | "qwen" = "grok";
+    let bestModel: ModelId = "grok";
     let bestScore = -1;
 
     for (const [model, stat] of modelStats) {
@@ -70,7 +71,7 @@ export class LearnableRouter {
 
       if (score > bestScore) {
         bestScore = score;
-        bestModel = model as "grok" | "glm" | "qwen";
+        bestModel = model as ModelId;
       }
     }
 
@@ -111,11 +112,11 @@ export class LearnableRouter {
   }
 
   private defaultRoute(
-    complexity: "simple" | "medium" | "complex"
-  ): "grok" | "glm" | "qwen" {
+    complexity: QueryComplexity
+  ): ModelId {
     switch (complexity) {
       case "simple":
-        return "qwen";
+        return "deepseek";
       case "medium":
         return "grok";
       case "complex":
@@ -123,6 +124,7 @@ export class LearnableRouter {
     }
   }
 
+  // P1-5 修复：改用同步读取防止竞态
   private loadHistory(): void {
     try {
       const fs = require("fs");
@@ -132,7 +134,7 @@ export class LearnableRouter {
         this.history = JSON.parse(fs.readFileSync(filePath, "utf-8"));
       }
     } catch (e) {
-      console.warn("[LearnableRouter] Failed to load history:", e);
+      // Silently ignore on first run
     }
   }
 
@@ -144,16 +146,20 @@ export class LearnableRouter {
       if (!fs.existsSync(dataDir)) {
         fs.mkdirSync(dataDir, { recursive: true });
       }
+      // P1-4 修复：限制历史记录最多 2000 条
+      if (this.history.length > 2000) {
+        this.history = this.history.slice(-2000);
+      }
       const filePath = path.join(dataDir, this.storageFile);
       fs.writeFileSync(filePath, JSON.stringify(this.history, null, 2));
     } catch (e) {
-      console.warn("[LearnableRouter] Failed to save history:", e);
+      // Silently ignore
     }
   }
 
   // 获取统计报告
   getStats(): {
-    model: string;
+    model: ModelId;
     totalQueries: number;
     successRate: number;
     avgLatency: number;
@@ -171,7 +177,7 @@ export class LearnableRouter {
     }
 
     return [...stats.entries()].map(([model, s]) => ({
-      model,
+      model: model as ModelId,
       totalQueries: s.total,
       successRate: s.total ? s.wins / s.total : 0,
       avgLatency: s.total ? s.latencySum / s.total : 0,

@@ -76,6 +76,7 @@ export interface AgentConfig {
   parallelToolCalls?: boolean;
   toolBudget?: {
     simple: number; // 简单问题工具预算
+    medium?: number; // 中等问题工具预算
     complex: number; // 复杂问题工具预算
   };
 }
@@ -91,7 +92,7 @@ export interface AgentState {
   startTime: number;
   error?: string;
   toolsUsed: number; // 已使用的工具数量
-  queryComplexity?: "simple" | "complex"; // 查询复杂度
+  queryComplexity?: QueryComplexity; // 查询复杂度
 }
 
 // ==================== 任务类型 ====================

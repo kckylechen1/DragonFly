@@ -14,6 +14,7 @@ import type {
   AgentConfig,
   AgentState,
   AgentMessage,
+  QueryComplexity,
   ToolCall,
   ToolDefinition,
   ToolExecutor,
@@ -50,6 +51,7 @@ export abstract class BaseAgent {
       parallelToolCalls: true,
       toolBudget: {
         simple: 6, // 简单问题最多 6 个工具
+        medium: 9, // 中等问题最多 9 个工具
         complex: 12, // 复杂问题最多 12 个工具
       },
       ...config,
@@ -124,7 +126,7 @@ export abstract class BaseAgent {
   /**
    * 分类查询复杂度
    */
-  private classifyQueryComplexity(userMessage: string): "simple" | "complex" {
+  private classifyQueryComplexity(userMessage: string): QueryComplexity {
     const message = userMessage.toLowerCase();
 
     // 简单查询特征
@@ -385,7 +387,9 @@ export abstract class BaseAgent {
     const results = new Map<string, ToolExecutionResult>();
 
     // 检查工具预算
-    const maxTools = this.config.toolBudget![this.state.queryComplexity!];
+    const complexity = this.state.queryComplexity || "simple";
+    const budget = this.config.toolBudget!;
+    const maxTools = budget[complexity] ?? budget.complex;
     const remainingTools = maxTools - this.state.toolsUsed;
 
     if (remainingTools <= 0) {
