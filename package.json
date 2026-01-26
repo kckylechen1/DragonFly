@@ -73,6 +73,7 @@
     "react-day-picker": "^9.13.0",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
+    "react-dom": "^19.2.3",
     "react-hook-form": "^7.71.1",
     "react-resizable-panels": "^3.0.6",
     "recharts": "^3.6.0",
@@ -83,7 +84,6 @@
     "tailwindcss-animate": "^1.0.7",
     "technicalindicators": "^3.1.0",
     "vaul": "^1.1.2",
-    "wouter": "^3.3.5",
     "zod": "^4.1.12",
     "zustand": "^5.0.10"
   },
@@ -114,9 +114,6 @@
   },
   "packageManager": "pnpm@10.27.0",
   "pnpm": {
-    "patchedDependencies": {
-      "wouter@3.7.1": "patches/wouter@3.7.1.patch"
-    },
     "overrides": {
       "tailwindcss>nanoid": "3.3.7"
     }
