@@ -136,9 +136,9 @@
   body {
     @apply bg-background text-foreground;
     font-family:
-      -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-      "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-      sans-serif;
+      "PingFang SC", "SF Pro SC", "SF Pro Text", -apple-system, BlinkMacSystemFont,
+      "Source Han Sans SC", "Noto Sans SC", "Microsoft YaHei", "Segoe UI",
+      Roboto, "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -164,6 +164,7 @@
 }
 
 @layer components {
+
   /**
    * Custom container utility that centers content and adds responsive padding.
    *
@@ -212,6 +213,7 @@
 
 /* AI 助手三个点加载动画 */
 @keyframes typing-dot {
+
   0%,
   100% {
     opacity: 0.3;

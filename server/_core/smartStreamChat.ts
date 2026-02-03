@@ -3,12 +3,15 @@
  *
  * 替代原有的 streamChat，使用新架构：
  * - SmartAgent (主控)
+ * - Grok+GLM 主从架构（可选）
  * - Session 持久化
  * - Memory 记忆系统
  * - Skill 技能匹配
  */
 
 import { createSmartAgent } from "./agent";
+import { streamGrokGLMAgent } from "./agent/grok-glm-agent";
+import { detectNewStockMention } from "./session/message-classifier";
 import type { StreamEvent } from "./agent/types";
 
 // 前端传来的股票上下文数据类型
@@ -52,6 +55,8 @@ export interface SmartStreamChatParams {
   stockContext?: StockContextData | null;
   sessionId?: string;
   thinkHard?: boolean;
+  useGrokGLM?: boolean; // 使用 Grok+GLM 主从架构
+  showToolEvents?: boolean; // 是否显示工具调用事件
 }
 
 function formatFundAmount(val?: number): string {
@@ -61,7 +66,7 @@ function formatFundAmount(val?: number): string {
   return `${sign}${(absVal / 100000000).toFixed(2)}亿`;
 }
 
-function buildContextFromFrontend(
+export function buildContextFromFrontend(
   stockCode: string,
   ctx: StockContextData
 ): string {
@@ -135,12 +140,34 @@ ${mainStatus}
  * 格式化流式事件为前端可用的 SSE 格式
  *
  * 精简模式：只显示最终分析结果，隐藏中间过程
+ * 详细模式：显示工具调用过程
  */
-function formatEventForSSE(event: StreamEvent): string {
+function formatEventForSSE(
+  event: StreamEvent,
+  showTools: boolean = false
+): string {
   switch (event.type) {
     case "thinking":
+      // 思考过程可选显示
+      if (showTools) {
+        return `<!--THINKING:${JSON.stringify({ message: event.data })}-->\n`;
+      }
+      return "";
+
     case "tool_call":
+      // 工具调用事件
+      if (showTools) {
+        return `<!--TOOL_CALL:${JSON.stringify(event.data)}-->\n`;
+      }
+      return "";
+
     case "tool_result":
+      // 工具结果事件
+      if (showTools) {
+        return `<!--TOOL_RESULT:${JSON.stringify(event.data)}-->\n`;
+      }
+      return "";
+
     case "task_start":
     case "task_complete":
       // 隐藏中间过程，让输出更像专业投资顾问
@@ -169,7 +196,15 @@ function formatEventForSSE(event: StreamEvent): string {
 export async function* smartStreamChat(
   params: SmartStreamChatParams
 ): AsyncGenerator<string, void, unknown> {
-  const { messages, stockCode, stockContext, sessionId, thinkHard } = params;
+  const {
+    messages,
+    stockCode,
+    stockContext,
+    sessionId,
+    thinkHard,
+    useGrokGLM = false,
+    showToolEvents = false,
+  } = params;
 
   // 获取最后一条用户消息
   const userMessages = messages.filter(m => m.role === "user");
@@ -180,22 +215,65 @@ export async function* smartStreamChat(
     return;
   }
 
-  // 兼容旧的“切换到详细模式”口令
+  // 检测用户消息中是否提到新股票
+  const stockMention = detectNewStockMention(lastUserMessage, stockCode);
+  if (stockMention.hasNewStock && stockMention.stockName) {
+    console.log(
+      `[smartStreamChat] 检测到新股票: ${stockMention.stockName}, isSwitch: ${stockMention.isSwitch}`
+    );
+  }
+
+  // 兼容旧的"切换到详细模式"口令
   const isSwitchingToDetailMode =
     lastUserMessage.includes("切换到详细输出模式") ||
     lastUserMessage.includes("更详细输出版本");
   const effectiveThinkHard = Boolean(thinkHard) || isSwitchingToDetailMode;
+  const effectiveShowTools = showToolEvents || isSwitchingToDetailMode;
 
   const preloadedContext =
     stockCode && stockContext
       ? buildContextFromFrontend(stockCode, stockContext)
       : undefined;
 
+  // 选择使用哪个 Agent 架构
+  if (useGrokGLM) {
+    // 使用 Grok+GLM 主从架构
+    yield* streamWithGrokGLM(
+      lastUserMessage,
+      stockCode,
+      preloadedContext,
+      effectiveThinkHard,
+      effectiveShowTools
+    );
+  } else {
+    // 使用原有的 SmartAgent 架构
+    yield* streamWithSmartAgent(
+      lastUserMessage,
+      stockCode,
+      sessionId,
+      preloadedContext,
+      effectiveThinkHard,
+      effectiveShowTools
+    );
+  }
+}
+
+/**
+ * 使用 SmartAgent 架构流式聊天
+ */
+async function* streamWithSmartAgent(
+  userMessage: string,
+  stockCode: string | undefined,
+  sessionId: string | undefined,
+  preloadedContext: string | undefined,
+  thinkHard: boolean,
+  showTools: boolean
+): AsyncGenerator<string, void, unknown> {
   // 创建 SmartAgent
   const agent = createSmartAgent({
     stockCode,
     sessionId,
-    thinkHard: effectiveThinkHard,
+    thinkHard,
     preloadedContext,
     useOrchestrator: false, // 先用基础模式，更快更稳定
     verbose: false,
@@ -206,8 +284,8 @@ export async function* smartStreamChat(
 
   try {
     // 流式执行
-    for await (const event of agent.stream(lastUserMessage)) {
-      const formatted = formatEventForSSE(event);
+    for await (const event of agent.stream(userMessage)) {
+      const formatted = formatEventForSSE(event, showTools);
 
       if (formatted) {
         yield formatted;
@@ -226,7 +304,7 @@ export async function* smartStreamChat(
       // 生成上下文相关的 follow-up 建议
       const followUps = generateFollowUpSuggestions(
         fullContent,
-        lastUserMessage,
+        userMessage,
         stockCode
       );
       if (followUps.length > 0) {
@@ -240,6 +318,56 @@ export async function* smartStreamChat(
   } finally {
     // 清理资源
     agent.cleanup();
+  }
+}
+
+/**
+ * 使用 Grok+GLM 主从架构流式聊天
+ */
+async function* streamWithGrokGLM(
+  userMessage: string,
+  stockCode: string | undefined,
+  preloadedContext: string | undefined,
+  thinkHard: boolean,
+  showTools: boolean
+): AsyncGenerator<string, void, unknown> {
+  let hasContent = false;
+  let fullContent = "";
+
+  try {
+    for await (const event of streamGrokGLMAgent(userMessage, {
+      stockCode,
+      preloadedContext,
+      thinkHard,
+    })) {
+      const formatted = formatEventForSSE(event, showTools);
+
+      if (formatted) {
+        yield formatted;
+
+        if (event.type === "content") {
+          hasContent = true;
+          fullContent += event.data;
+        }
+      }
+    }
+
+    if (!hasContent) {
+      yield "\n⚠️ 未能生成回答，请重试。";
+    } else {
+      // 生成 follow-up 建议
+      const followUps = generateFollowUpSuggestions(
+        fullContent,
+        userMessage,
+        stockCode
+      );
+      if (followUps.length > 0) {
+        yield `\n<!--FOLLOWUP:${JSON.stringify(followUps)}-->`;
+      }
+    }
+  } catch (error: any) {
+    console.error("GrokGLM stream error:", error);
+    yield `\n❌ 发生错误: ${error.message}`;
   }
 }
 

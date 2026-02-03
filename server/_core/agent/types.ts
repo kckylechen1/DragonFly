@@ -9,13 +9,15 @@ export type MessageRole = "system" | "user" | "assistant" | "tool";
 
 // ==================== 模型 & 复杂度类型 ====================
 
-export type ModelId = "grok" | "glm" | "deepseek";
+export type ModelId = "grok" | "glm" | "deepseek" | "claude";
+export type LLMProvider = "openai" | "anthropic";
 export type QueryComplexity = "simple" | "medium" | "complex";
 
 export interface LLMConfig {
   url: string;
   key: string;
   model: string;
+  provider?: LLMProvider; // 'openai' | 'anthropic'
 }
 
 export interface ToolCall {
@@ -27,15 +29,36 @@ export interface ToolCall {
   };
 }
 
+export interface AgentMessageMetadata {
+  stockCodes?: string[];
+  archivedAt?: string;
+  [key: string]: any;
+}
+
 export interface AgentMessage {
   role: MessageRole;
   content: string;
   name?: string;
   tool_call_id?: string;
   tool_calls?: ToolCall[];
+  metadata?: AgentMessageMetadata;
 }
 
 // ==================== 工具类型 ====================
+
+export interface ToolResultMeta {
+  asOf: string;
+  source?: string;
+  latencyMs?: number;
+  truncated?: boolean;
+}
+
+export interface ToolExecutionOutput {
+  content: string;
+  summary?: string;
+  rawRef?: string;
+  meta?: ToolResultMeta;
+}
 
 export interface ToolDefinition {
   type: "function";
@@ -58,7 +81,9 @@ export interface ToolDefinition {
   };
 }
 
-export type ToolExecutor = (args: Record<string, any>) => Promise<string>;
+export type ToolExecutor = (
+  args: Record<string, any>
+) => Promise<ToolExecutionOutput>;
 
 // ==================== Agent 配置 ====================
 

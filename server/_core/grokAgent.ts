@@ -1,7 +1,7 @@
 /**
- * Grok + Qwen3 主从架构
+ * Grok + DeepSeek 主从架构
  *
- * Grok 是指挥官，可以命令 Qwen3 执行工具调用
+ * Grok 是指挥官，可以命令 DeepSeek 执行工具调用
  * 就像你能命令我写代码、跑测试一样
  */
 
@@ -28,13 +28,13 @@ interface ChatMessage {
 
 // ==================== Grok 的工具定义 ====================
 
-// Grok 可用的工具：delegate_to_qwen（让 Qwen3 干活）
+// Grok 可用的工具：delegate_to_deepseek（让 DeepSeek 干活）
 const grokTools = [
   {
     type: "function" as const,
     function: {
-      name: "delegate_to_qwen",
-      description: `让 Qwen3（你的助手）去执行数据查询任务。Qwen3 可以执行以下工具：
+      name: "delegate_to_deepseek",
+      description: `让 DeepSeek（你的助手）去执行数据查询任务。DeepSeek 可以执行以下工具：
 - comprehensive_analysis: 股票综合分析（技术面+资金面+大盘）
 - get_guba_hot_rank: 股吧人气排名
 - get_market_status: 大盘状态
@@ -42,14 +42,14 @@ const grokTools = [
 - get_stock_quote: 实时行情
 - get_fund_flow: 资金流向
 
-你只需要告诉 Qwen3 你需要什么数据，它会自动选择合适的工具。`,
+你只需要告诉 DeepSeek 你需要什么数据，它会自动选择合适的工具。`,
       parameters: {
         type: "object",
         properties: {
           task: {
             type: "string",
             description:
-              "分配给 Qwen3 的任务描述，例如：'分析 300308 的技术面和资金面' 或 '查询中际旭创的人气排名'",
+              "分配给 DeepSeek 的任务描述，例如：'分析 300308 的技术面和资金面' 或 '查询中际旭创的人气排名'",
           },
           stockCode: {
             type: "string",
@@ -62,17 +62,17 @@ const grokTools = [
   },
 ];
 
-// ==================== Qwen3 执行任务 ====================
+// ==================== DeepSeek 执行任务 ====================
 
-async function qwenExecuteTask(
+async function deepseekExecuteTask(
   task: string,
   stockCode: string
 ): Promise<string> {
-  console.log(`\n[Qwen3] 收到任务: ${task}`);
-  console.log(`[Qwen3] 股票代码: ${stockCode}`);
+  console.log(`\n[DeepSeek] 收到任务: ${task}`);
+  console.log(`[DeepSeek] 股票代码: ${stockCode}`);
 
-  // Qwen3 根据任务描述决定调用哪些工具
-  const qwenSystemPrompt = `你是一个数据执行助手，负责调用工具获取股票数据。
+  // DeepSeek 根据任务描述决定调用哪些工具
+  const deepseekSystemPrompt = `你是一个数据执行助手，负责调用工具获取股票数据。
     
 当前任务: ${task}
 股票代码: ${stockCode}
@@ -92,9 +92,9 @@ async function qwenExecuteTask(
       Authorization: `Bearer ${ENV.forgeApiKey}`,
     },
     body: JSON.stringify({
-      model: "Qwen/Qwen3-235B-A22B",
+      model: "deepseek-ai/DeepSeek-V3.2",
       messages: [
-        { role: "system", content: qwenSystemPrompt },
+        { role: "system", content: deepseekSystemPrompt },
         { role: "user", content: `执行任务: ${task}` },
       ],
       tools: stockTools,
@@ -106,16 +106,18 @@ async function qwenExecuteTask(
   const data = await response.json();
   const message = data.choices?.[0]?.message;
 
-  // 如果 Qwen3 调用了工具
+  // 如果 DeepSeek 调用了工具
   if (message?.tool_calls && message.tool_calls.length > 0) {
-    console.log(`[Qwen3] 决定调用 ${message.tool_calls.length} 个工具`);
+    console.log(`[DeepSeek] 决定调用 ${message.tool_calls.length} 个工具`);
 
     let results: string[] = [];
 
     for (const toolCall of message.tool_calls) {
       const toolName = toolCall.function.name;
       const toolArgs = JSON.parse(toolCall.function.arguments);
-      console.log(`[Qwen3] 执行工具: ${toolName}(${JSON.stringify(toolArgs)})`);
+      console.log(
+        `[DeepSeek] 执行工具: ${toolName}(${JSON.stringify(toolArgs)})`
+      );
 
       const result = await executeStockTool(toolName, toolArgs);
       results.push(`【${toolName} 结果】\n${result}`);
@@ -124,8 +126,8 @@ async function qwenExecuteTask(
     return results.join("\n\n");
   }
 
-  // 没有工具调用，返回 Qwen3 的直接回答
-  return message?.content || "Qwen3 无返回";
+  // 没有工具调用，返回 DeepSeek 的直接回答
+  return message?.content || "DeepSeek 无返回";
 }
 
 // ==================== Grok 主循环 ====================
@@ -153,11 +155,11 @@ export async function grokAgentChat(
 【当前时间】${dateStr}
 
 【你的能力】
-你有一个助手叫 Qwen3，可以帮你执行数据查询。使用 delegate_to_qwen 工具让它干活。
+你有一个助手叫 DeepSeek，可以帮你执行数据查询。使用 delegate_to_deepseek 工具让它干活。
 
 【工作流程】
 1. 用户提问 → 你思考需要什么数据
-2. 调用 delegate_to_qwen 让 Qwen3 获取数据
+2. 调用 delegate_to_deepseek 让 DeepSeek 获取数据
 3. 基于数据给出专业、直接的分析
 
 【你的风格】
@@ -184,24 +186,24 @@ export async function grokAgentChat(
 
   while (iteration < maxIterations) {
     iteration++;
-    console.log(`\n[GLM] 第 ${iteration} 轮对话...`);
+    console.log(`\n[Grok] 第 ${iteration} 轮对话...`);
 
-    const apiKey = ENV.glmApiKey;
-    const hasNonAscii = /[^\x00-\x7F]/.test(apiKey);
+    const apiKey = ENV.grokApiKey;
+    const hasNonAscii = /[^\\x00-\\x7F]/.test(apiKey);
     if (hasNonAscii) {
-      console.error("[GLM] API Key contains non-ASCII characters!");
-      console.error("[GLM] First 20 chars:", apiKey.substring(0, 20));
-      return "GLM 错误：API Key 包含非 ASCII 字符，请检查 .env 文件";
+      console.error("[Grok] API Key contains non-ASCII characters!");
+      console.error("[Grok] First 20 chars:", apiKey.substring(0, 20));
+      return "Grok 错误：API Key 包含非 ASCII 字符，请检查 .env 文件";
     }
 
-    const response = await fetch(`${ENV.glmApiUrl}/chat/completions`, {
+    const response = await fetch(`${ENV.grokApiUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json; charset=utf-8",
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: ENV.glmModel,
+        model: ENV.grokModel,
         messages: messages.map(m => ({
           role: m.role,
           content: m.content,
@@ -242,9 +244,9 @@ export async function grokAgentChat(
 
         let result: string;
 
-        if (toolName === "delegate_to_qwen") {
-          // 让 Qwen3 干活
-          result = await qwenExecuteTask(toolArgs.task, toolArgs.stockCode);
+        if (toolName === "delegate_to_deepseek") {
+          // 让 DeepSeek 干活
+          result = await deepseekExecuteTask(toolArgs.task, toolArgs.stockCode);
         } else {
           result = `未知工具: ${toolName}`;
         }
@@ -293,11 +295,11 @@ export async function* streamGrokAgentChat(
 【当前时间】${dateStr}
 
 【你的能力】
-你有一个助手叫 Qwen3，可以帮你执行数据查询。使用 delegate_to_qwen 工具让它干活。
+你有一个助手叫 DeepSeek，可以帮你执行数据查询。使用 delegate_to_deepseek 工具让它干活。
 
 【工作流程】
 1. 用户提问 → 你思考需要什么数据
-2. 调用 delegate_to_qwen 让 Qwen3 获取数据
+2. 调用 delegate_to_deepseek 让 DeepSeek 获取数据
 3. 基于数据给出专业、直接的分析
 
 【你的风格】
@@ -322,16 +324,16 @@ export async function* streamGrokAgentChat(
   while (needsToolCall && iteration < maxIterations) {
     iteration++;
 
-    const apiKey = ENV.glmApiKey;
-    const hasNonAscii = /[^\x00-\x7F]/.test(apiKey);
+    const apiKey = ENV.grokApiKey;
+    const hasNonAscii = /[^\\x00-\\x7F]/.test(apiKey);
     if (hasNonAscii) {
-      console.error("[GLM] API Key contains non-ASCII characters!");
-      console.error("[GLM] First 20 chars:", apiKey.substring(0, 20));
-      yield "GLM 错误：API Key 包含非 ASCII 字符，请检查 .env 文件";
+      console.error("[Grok] API Key contains non-ASCII characters!");
+      console.error("[Grok] First 20 chars:", apiKey.substring(0, 20));
+      yield "Grok 错误：API Key 包含非 ASCII 字符，请检查 .env 文件";
       return;
     }
 
-    const response = await fetch(`${ENV.glmApiUrl}/chat/completions`, {
+    const response = await fetch(`${ENV.grokApiUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json; charset=utf-8",
@@ -370,9 +372,9 @@ export async function* streamGrokAgentChat(
       for (const toolCall of assistantMessage.tool_calls) {
         const toolArgs = JSON.parse(toolCall.function.arguments);
 
-        if (toolCall.function.name === "delegate_to_qwen") {
-          yield `📊 Qwen3 正在执行: ${toolArgs.task}\n`;
-          const result = await qwenExecuteTask(
+        if (toolCall.function.name === "delegate_to_deepseek") {
+          yield `📊 DeepSeek 正在执行: ${toolArgs.task}\n`;
+          const result = await deepseekExecuteTask(
             toolArgs.task,
             toolArgs.stockCode
           );
@@ -389,18 +391,18 @@ export async function* streamGrokAgentChat(
   }
 
   // 最终回答阶段（流式）
-  yield "\n🧠 GLM 分析中...\n\n";
+  yield "\n🧠 Grok 分析中...\n\n";
 
-  const apiKey = ENV.glmApiKey;
-  const hasNonAscii = /[^\x00-\x7F]/.test(apiKey);
+  const apiKey = ENV.grokApiKey;
+  const hasNonAscii = /[^\\x00-\\x7F]/.test(apiKey);
   if (hasNonAscii) {
-    console.error("[GLM] API Key contains non-ASCII characters!");
-    console.error("[GLM] First 20 chars:", apiKey.substring(0, 20));
-    yield "GLM 错误：API Key 包含非 ASCII 字符，请检查 .env 文件";
+    console.error("[Grok] API Key contains non-ASCII characters!");
+    console.error("[Grok] First 20 chars:", apiKey.substring(0, 20));
+    yield "Grok 错误：API Key 包含非 ASCII 字符，请检查 .env 文件";
     return;
   }
 
-  const finalResponse = await fetch(`${ENV.glmApiUrl}/chat/completions`, {
+  const finalResponse = await fetch(`${ENV.grokApiUrl}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json; charset=utf-8",

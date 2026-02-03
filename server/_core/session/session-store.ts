@@ -515,6 +515,170 @@ export class SessionStore {
   }
 
   /**
+   * 获取或创建股票专属会话
+   */
+  getOrCreateStockSession(stockCode: string): Session {
+    const existing = this.findSessionsByStock(stockCode);
+    if (existing.length > 0) {
+      // 返回最近更新的会话
+      return existing[0];
+    }
+    return this.createSession(stockCode);
+  }
+
+  /**
+   * 切换股票时归档会话
+   * 将当前会话的消息归档到对应股票的历史中
+   */
+  async archiveOnStockSwitch(
+    sessionId: string,
+    oldStockCode: string,
+    newStockCode: string
+  ): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    // 获取与旧股票相关的消息
+    const messagesToArchive = session.messages.filter(msg => {
+      if (msg.role === "system") return false;
+      // 检查消息内容是否包含旧股票代码或相关分析
+      return (
+        msg.content.includes(oldStockCode) ||
+        msg.metadata?.stockCodes?.includes(oldStockCode)
+      );
+    });
+
+    if (messagesToArchive.length === 0) return;
+
+    // 获取或创建旧股票的专属会话
+    let archiveSession = this.findSessionsByStock(oldStockCode)[0];
+    if (!archiveSession) {
+      archiveSession = this.createSession(oldStockCode);
+    }
+
+    // 归档消息
+    const now = new Date().toISOString();
+    const archiveMessage: AgentMessage = {
+      role: "system",
+      content: `[归档自会话 ${sessionId}，时间 ${now}]`,
+    };
+
+    archiveSession.messages.push(archiveMessage);
+    for (const msg of messagesToArchive) {
+      archiveSession.messages.push({ ...msg });
+    }
+
+    archiveSession.updatedAt = now;
+    archiveSession.metadata.lastActivity = now;
+
+    this.markDirty(archiveSession.id);
+    if (this.config.autoSave) {
+      this.saveSession(archiveSession.id);
+    }
+
+    console.log(
+      `[SessionStore] 归档 ${messagesToArchive.length} 条消息到股票 ${oldStockCode}`
+    );
+  }
+
+  /**
+   * 消息分类归档
+   * 将消息归档到涉及的所有股票会话中
+   */
+  async archiveMessageToStocks(
+    message: AgentMessage,
+    stockCodes: string[]
+  ): Promise<void> {
+    if (stockCodes.length === 0) return;
+
+    const now = new Date().toISOString();
+
+    for (const stockCode of stockCodes) {
+      let stockSession = this.findSessionsByStock(stockCode)[0];
+      if (!stockSession) {
+        stockSession = this.createSession(stockCode);
+      }
+
+      // 避免重复归档
+      const isDuplicate = stockSession.messages.some(
+        m => m.content === message.content && m.role === message.role
+      );
+
+      if (!isDuplicate) {
+        stockSession.messages.push({
+          ...message,
+          metadata: {
+            ...message.metadata,
+            archivedAt: now,
+            stockCodes,
+          },
+        });
+
+        stockSession.updatedAt = now;
+        stockSession.metadata.lastActivity = now;
+
+        this.markDirty(stockSession.id);
+      }
+    }
+
+    if (this.config.autoSave) {
+      for (const stockCode of stockCodes) {
+        const session = this.findSessionsByStock(stockCode)[0];
+        if (session) {
+          this.saveSession(session.id);
+        }
+      }
+    }
+  }
+
+  /**
+   * 清理会话中与指定股票无关的消息
+   * 用于切换股票后清理当前会话
+   */
+  pruneUnrelatedMessages(
+    sessionId: string,
+    currentStockCode: string,
+    keepGeneral: boolean = true
+  ): number {
+    const session = this.sessions.get(sessionId);
+    if (!session) return 0;
+
+    const originalCount = session.messages.length;
+
+    session.messages = session.messages.filter(msg => {
+      // 保留系统消息
+      if (msg.role === "system") return true;
+
+      // 保留与当前股票相关的消息
+      if (msg.content.includes(currentStockCode)) return true;
+      if (msg.metadata?.stockCodes?.includes(currentStockCode)) return true;
+
+      // 可选：保留通用对话（不涉及具体股票的）
+      if (keepGeneral) {
+        const hasAnyStockCode = /[036]\d{5}/.test(msg.content);
+        if (!hasAnyStockCode) return true;
+      }
+
+      return false;
+    });
+
+    const prunedCount = originalCount - session.messages.length;
+
+    if (prunedCount > 0) {
+      session.updatedAt = new Date().toISOString();
+      this.markDirty(sessionId);
+      if (this.config.autoSave) {
+        this.saveSession(sessionId);
+      }
+      console.log(
+        `[SessionStore] 清理 ${prunedCount} 条与 ${currentStockCode} 无关的消息`
+      );
+    }
+
+    return prunedCount;
+  }
+
+  /**
    * 保存单个会话
    */
   saveSession(sessionId: string): boolean {

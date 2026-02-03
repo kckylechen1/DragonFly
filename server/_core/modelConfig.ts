@@ -9,7 +9,11 @@ import { ENV } from "./env";
 /**
  * 模型类型
  */
-export type ModelType = "grok" | "deepseek" | "qwen_worker" | "qwen_classifier";
+export type ModelType =
+  | "grok"
+  | "deepseek"
+  | "deepseek_worker"
+  | "deepseek_classifier";
 
 /**
  * 模型配置接口
@@ -48,9 +52,9 @@ export function getModelConfig(type: ModelType): ModelConfig {
         topP: 0.9,
       };
 
-    case "qwen_worker":
+    case "deepseek_worker":
       return {
-        model: "Qwen/Qwen3-32B",
+        model: "deepseek-ai/DeepSeek-V3.2",
         apiUrl: `${ENV.forgeApiUrl}/v1/chat/completions`,
         apiKey: ENV.forgeApiKey,
         temperature: 0.2, // 低温度，稳定输出
@@ -58,9 +62,9 @@ export function getModelConfig(type: ModelType): ModelConfig {
         topP: 0.9,
       };
 
-    case "qwen_classifier":
+    case "deepseek_classifier":
       return {
-        model: "Qwen/Qwen2.5-32B-Instruct",
+        model: "deepseek-ai/DeepSeek-V3.2",
         apiUrl: `${ENV.forgeApiUrl}/v1/chat/completions`,
         apiKey: ENV.forgeApiKey,
         temperature: 0.1, // 极低温度，稳定分类
@@ -87,13 +91,13 @@ export const MODEL_USAGE = {
     role: "Backup Analyst",
     useCases: ["备用分析模型", "切换测试", "批量任务"],
   },
-  qwen_worker: {
-    name: "Qwen3-32B",
+  deepseek_worker: {
+    name: "DeepSeek-V3.2",
     role: "Data Worker",
     useCases: ["仪表盘数据获取", "后台数据刷新", "新闻聚合", "快速行情查询"],
   },
-  qwen_classifier: {
-    name: "Qwen2.5-32B-Instruct",
+  deepseek_classifier: {
+    name: "DeepSeek-V3.2",
     role: "Intent Classifier",
     useCases: ["意图分类", "规则无法匹配时的兜底分类"],
   },

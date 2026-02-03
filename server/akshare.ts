@@ -2,16 +2,37 @@
  * AKShare HTTP API 集成
  * 通过 AKTools 服务调用 AKShare 数据接口
  *
- * 注意：AKTools 需要单独启动 Python 服务
+ * ⚠️ 重要提示：AKTools 服务可能不稳定（Eastmoney 反爬限制）
+ * 建议使用 server/smart-data.ts 提供的智能数据获取接口：
+ * - getSmartStockQuote() - 智能行情（自动降级到 Eastmoney）
+ * - getSmartKlineData() - 智能 K线（自动降级到 Eastmoney）
+ * - smartSearchStock() - 智能搜索（自动降级到 Eastmoney）
+ *
+ * AKTools 专用接口（保留用于专业数据）：
+ * - getLongHuBangData() - 龙虎榜
+ * - getMarginTradingData() - 融资融券
+ * - getFundFlowRank() - 资金流向排行
+ *
  * 启动命令：pnpm start:aktools
+ * 升级命令：./scripts/upgrade-aktools.sh
  *
  * 数据源优先级：
- * 1. Eastmoney API - 主要数据源（免费、可靠）
- * 2. AKShare/AKTools - 补充数据源（龙虎榜、融资融券等）
+ * 1. Eastmoney API - 主要数据源（免费、可靠、无需额外服务）⭐ 推荐
+ * 2. AKShare/AKTools - 补充数据源（龙虎榜、融资融券等专业数据）
  * 3. iFind - 未来专业数据源（付费）
  */
 
 import axios from "axios";
+// 导出智能数据接口，推荐使用
+export {
+  getSmartStockQuote,
+  getSmartStockQuotes,
+  getSmartKlineData,
+  smartSearchStock,
+  getHealthReport,
+  checkServices,
+  clearSmartDataCache,
+} from "./smart-data";
 
 const AKTOOLS_BASE_URL = process.env.AKTOOLS_URL || "http://127.0.0.1:8098";
 
@@ -385,7 +406,9 @@ export async function getStockQuote(
 ): Promise<StockQuoteAK | null> {
   try {
     const allSpots = await getStockSpotAll();
-    const stock = allSpots.find(s => s["代码"] === symbol);
+    // 使用 Map 优化查找性能，从 O(n) 提升到 O(1)
+    const spotMap = new Map(allSpots.map(s => [s["代码"], s]));
+    const stock = spotMap.get(symbol);
     if (!stock) return null;
 
     return {
@@ -505,14 +528,18 @@ export async function getFundFlowRankBySymbol(
     const allRanks = await getFundFlowRank("today");
     if (!allRanks || allRanks.length === 0) return null;
 
-    const idx = allRanks.findIndex((item: any) => {
-      const code = item["代码"] || "";
-      return code === stockCode;
-    });
+    // 使用 Map 优化查找性能，从 O(n) 提升到 O(1)
+    const rankMap = new Map(
+      allRanks.map((item: any, index: number) => [
+        item["代码"] || "",
+        { item, index },
+      ])
+    );
 
-    if (idx === -1) return null;
+    const rankEntry = rankMap.get(stockCode);
+    if (!rankEntry) return null;
 
-    const item = allRanks[idx];
+    const { item, index: idx } = rankEntry;
     return {
       symbol: stockCode,
       rank: parseInt(item["序号"]) || idx + 1, // 使用序号或位置

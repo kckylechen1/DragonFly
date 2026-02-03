@@ -17,7 +17,7 @@ export const ENV = {
   ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
   isProduction: process.env.NODE_ENV === "production",
 
-  // 硅基流动 AI API (DeepSeek/Qwen)
+  // 硅基流动 AI API (DeepSeek)
   forgeApiUrl:
     process.env.BUILT_IN_FORGE_API_URL ?? "https://api.siliconflow.cn",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
@@ -31,6 +31,11 @@ export const ENV = {
   glmApiUrl: process.env.GLM_API_URL ?? "https://open.bigmodel.cn/api/paas/v4",
   glmApiKey: process.env.GLM_API_KEY ?? "",
   glmModel: process.env.GLM_MODEL ?? "glm-4.7",
+
+  // Anthropic Claude API (原生格式，非 OpenAI 兼容)
+  anthropicApiUrl: process.env.ANTHROPIC_API_URL ?? "https://api.anthropic.com",
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
+  anthropicModel: process.env.ANTHROPIC_MODEL ?? "claude-3-5-sonnet-20241022",
 
   // 同花顺 iFinD API (可选)
   ifindRefreshToken: process.env.IFIND_REFRESH_TOKEN ?? "",
@@ -59,7 +64,12 @@ const ENV_VALIDATIONS: EnvValidation[] = [
 ];
 
 // 可选但建议配置的 AI API (至少需要一个)
-const AI_API_KEYS = ["GROK_API_KEY", "XAI_API_KEY", "GLM_API_KEY", "BUILT_IN_FORGE_API_KEY"];
+const AI_API_KEYS = [
+  "GROK_API_KEY",
+  "XAI_API_KEY",
+  "GLM_API_KEY",
+  "BUILT_IN_FORGE_API_KEY",
+];
 
 export function validateEnv(): void {
   const errors: string[] = [];
@@ -73,7 +83,7 @@ export function validateEnv(): void {
   }
 
   // 检查是否至少配置了一个 AI API
-  const hasAnyAiKey = AI_API_KEYS.some((key) => !!process.env[key]);
+  const hasAnyAiKey = AI_API_KEYS.some(key => !!process.env[key]);
   if (!hasAnyAiKey) {
     warnings.push(
       `⚠️  未配置任何 AI API 密钥，AI 功能将不可用。建议配置: ${AI_API_KEYS.join(" 或 ")}`
@@ -83,13 +93,13 @@ export function validateEnv(): void {
   // 输出警告
   if (warnings.length > 0) {
     console.warn("\n🔔 环境变量警告:");
-    warnings.forEach((w) => console.warn(`   ${w}`));
+    warnings.forEach(w => console.warn(`   ${w}`));
   }
 
   // 如果有错误，抛出异常
   if (errors.length > 0) {
     console.error("\n🚨 环境变量校验失败:");
-    errors.forEach((e) => console.error(`   ${e}`));
+    errors.forEach(e => console.error(`   ${e}`));
     console.error("\n💡 请复制 .env.example 为 .env 并填入正确的值\n");
     throw new Error(`环境变量校验失败: 缺少 ${errors.length} 个必填项`);
   }

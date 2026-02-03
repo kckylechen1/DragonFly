@@ -1,0 +1,180 @@
+/* ==========================================================================
+   OrderBookPanel Styles
+   盘口面板样式 - 使用 CSS 变量确保主题兼容
+   ========================================================================== */
+
+.orderbook-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px;
+  background: var(--bg-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+
+.orderbook-header {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--panel-border);
+  letter-spacing: 0.5px;
+}
+
+/* Sections */
+.orderbook-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.orderbook-asks {
+  margin-bottom: 4px;
+}
+
+.orderbook-bids {
+  margin-top: 4px;
+}
+
+/* Center Price Display */
+.orderbook-center {
+  padding: 8px 0;
+  border-top: 1px solid var(--panel-border);
+  border-bottom: 1px solid var(--panel-border);
+  margin: 4px 0;
+}
+
+.orderbook-current-price {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.orderbook-price-value {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+}
+
+.orderbook-change {
+  font-size: var(--font-size-sm);
+  font-family: var(--font-numeric);
+}
+
+.orderbook-price-up {
+  color: var(--color-up);
+}
+
+.orderbook-price-down {
+  color: var(--color-down);
+}
+
+.orderbook-price-neutral {
+  color: var(--text-secondary);
+}
+
+/* Order Row */
+.orderbook-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 36px 1fr 60px;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+  overflow: hidden;
+}
+
+.orderbook-row:hover {
+  background: var(--hover-overlay);
+}
+
+/* Progress Bar Background */
+.orderbook-bar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  transition: width 0.2s ease;
+  pointer-events: none;
+  border-radius: 4px;
+}
+
+.orderbook-ask .orderbook-bar {
+  background: var(--color-down-bg);
+}
+
+.orderbook-bid .orderbook-bar {
+  background: var(--color-up-bg);
+}
+
+/* Labels */
+.orderbook-label {
+  position: relative;
+  z-index: 1;
+  font-size: var(--font-size-xs);
+}
+
+.orderbook-ask .orderbook-label {
+  color: var(--color-down);
+}
+
+.orderbook-bid .orderbook-label {
+  color: var(--color-up);
+}
+
+/* Price */
+.orderbook-price {
+  position: relative;
+  z-index: 1;
+  text-align: right;
+  color: var(--text-primary);
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Volume */
+.orderbook-volume {
+  position: relative;
+  z-index: 1;
+  text-align: right;
+  color: var(--text-secondary);
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Pulse Animation */
+@keyframes orderbook-pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.orderbook-pulse {
+  animation: orderbook-pulse 200ms ease-out;
+}
+
+.orderbook-pulse .orderbook-bar {
+  animation: orderbook-bar-pulse 200ms ease-out;
+}
+
+@keyframes orderbook-bar-pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}

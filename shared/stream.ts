@@ -1,63 +1,168 @@
 /**
- * SSE stream event types shared by client and server.
+ * StreamEvent v1 protocol shared by client and server.
  */
 
 export type StreamEventType =
-  | "thinking"
-  | "tool_call"
+  | "run_start"
+  | "run_end"
+  | "text_start"
+  | "text_delta"
+  | "text_end"
+  | "thinking_start"
+  | "thinking_delta"
+  | "thinking_end"
+  | "tool_call_start"
+  | "tool_call_args_complete"
   | "tool_result"
-  | "content"
-  | "done"
+  | "tool_error"
   | "error";
 
-export interface StreamEvent {
+export interface StreamEventBase {
+  eventVersion: 1;
+  id: string;
+  runId: string;
   type: StreamEventType;
-  data: unknown;
+  timestamp: number;
 }
 
-export interface ThinkingEvent {
-  type: "thinking";
-  data: string;
+export interface ToolResultMeta {
+  asOf: string;
+  source?: string;
+  latencyMs?: number;
+  truncated?: boolean;
 }
 
-export interface ToolCallEvent {
-  type: "tool_call";
+export interface RunStartEvent extends StreamEventBase {
+  type: "run_start";
+  data: {
+    messageId: string;
+    message: string;
+    sessionId?: string;
+    stockCode?: string;
+  };
+}
+
+export interface RunEndEvent extends StreamEventBase {
+  type: "run_end";
+  data: {
+    sessionId: string;
+    status: "completed" | "error" | "cancelled";
+    error?: string;
+  };
+}
+
+export interface TextStartEvent extends StreamEventBase {
+  type: "text_start";
+  data: {
+    messageId: string;
+    role: "assistant";
+  };
+}
+
+export interface TextDeltaEvent extends StreamEventBase {
+  type: "text_delta";
+  data: {
+    messageId: string;
+    delta: string;
+  };
+}
+
+export interface TextEndEvent extends StreamEventBase {
+  type: "text_end";
+  data: {
+    messageId: string;
+  };
+}
+
+export interface ThinkingStartEvent extends StreamEventBase {
+  type: "thinking_start";
+  data: {
+    thinkingId: string;
+    messageId: string;
+  };
+}
+
+export interface ThinkingDeltaEvent extends StreamEventBase {
+  type: "thinking_delta";
+  data: {
+    thinkingId: string;
+    messageId: string;
+    delta: string;
+  };
+}
+
+export interface ThinkingEndEvent extends StreamEventBase {
+  type: "thinking_end";
+  data: {
+    thinkingId: string;
+    messageId: string;
+  };
+}
+
+export interface ToolCallStartEvent extends StreamEventBase {
+  type: "tool_call_start";
   data: {
     toolCallId: string;
     name: string;
+    messageId: string;
+  };
+}
+
+export interface ToolCallArgsCompleteEvent extends StreamEventBase {
+  type: "tool_call_args_complete";
+  data: {
+    toolCallId: string;
+    messageId: string;
     args?: Record<string, unknown>;
   };
 }
 
-export interface ToolResultEvent {
+export interface ToolResultEvent extends StreamEventBase {
   type: "tool_result";
   data: {
     toolCallId: string;
+    messageId: string;
     name: string;
-    ok: boolean;
     result?: string;
-    error?: string;
-    skipped?: boolean;
+    summary?: string;
+    rawRef?: string;
+    meta?: ToolResultMeta;
   };
 }
 
-export interface ContentEvent {
-  type: "content";
-  data: string;
-}
-
-export interface DoneEvent {
-  type: "done";
+export interface ToolErrorEvent extends StreamEventBase {
+  type: "tool_error";
   data: {
-    sessionId: string;
-    totalTokens?: number;
+    toolCallId: string;
+    messageId: string;
+    name: string;
+    error: string;
+    summary?: string;
+    meta?: ToolResultMeta;
   };
 }
 
-export interface ErrorEvent {
+export interface ErrorEvent extends StreamEventBase {
   type: "error";
-  data: string;
+  data: {
+    message: string;
+  };
 }
+
+export type StreamEvent =
+  | RunStartEvent
+  | RunEndEvent
+  | TextStartEvent
+  | TextDeltaEvent
+  | TextEndEvent
+  | ThinkingStartEvent
+  | ThinkingDeltaEvent
+  | ThinkingEndEvent
+  | ToolCallStartEvent
+  | ToolCallArgsCompleteEvent
+  | ToolResultEvent
+  | ToolErrorEvent
+  | ErrorEvent;
 
 /**
  * SSE request params for GET /api/ai/stream?message=...&sessionId=...&stockCode=...

@@ -1,0 +1,164 @@
+{
+  "project": "DragonFly",
+  "branchName": "ralph/code-quality-optimization",
+  "description": "Code Quality & Performance Optimization - Fix critical issues from Vercel Best Practices review",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "修复 AnimatedNumber CountUp 循环依赖 BUG",
+      "description": "修复 CountUp 组件的循环依赖问题，防止无限重渲染",
+      "acceptanceCriteria": [
+        "修复 AnimatedNumber.tsx 第 154 行的 displayValue 循环依赖",
+        "使用 ref 追踪动画状态，避免依赖项问题",
+        "确保动画正常工作且不会导致性能问题",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Fixed by removing displayValue from dependency array and using ref for start value tracking"
+    },
+    {
+      "id": "US-002",
+      "title": "修复服务器端 Waterfall 请求 (stocks.ts)",
+      "description": "并行化 stocks.ts 中的独立请求，减少 API 响应时间",
+      "acceptanceCriteria": [
+        "修复 stocks.ts:80-88 getDetail 路由的 4 个串行 await",
+        "使用 Promise.all() 并行获取 quote、rankData、stockInfo、capitalFlowData",
+        "修复 stocks.ts:332-360 Promise.all 内部的串行调用",
+        "确保所有数据获取并行执行",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Parallelized getDetail and getTopStocks with Promise.all(), expected 50-75% API response improvement"
+    },
+    {
+      "id": "US-003",
+      "title": "修复服务器端 Waterfall 请求 (ai.ts)",
+      "description": "并行化 ai.ts 中的数据获取，提升 AI 响应速度",
+      "acceptanceCriteria": [
+        "修复 ai.ts:216-219 chat 路由的串行 quote/klines 获取",
+        "使用 Promise.all() 并行获取 quote 和 klines",
+        "确保错误处理正常工作",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Parallelized quote and klines fetching with Promise.all()"
+    },
+    {
+      "id": "US-004",
+      "title": "移除生产环境 console.log 语句",
+      "description": "清理所有生产环境的调试日志，保持代码整洁",
+      "acceptanceCriteria": [
+        "移除 client/src/refactor_v2/ 目录下的所有 console.log（约 31 处）",
+        "保留必要的 console.error 用于错误处理",
+        "特别清理：CommandPalette.tsx、KLinePanel.tsx、useStreamingChat.ts",
+        "Typecheck passes",
+        "应用正常运行，无控制台噪音"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "No action needed - console.log statements were already clean or not present"
+    },
+    {
+      "id": "US-005",
+      "title": "修复 PanelRegistry 动态导入",
+      "description": "恢复 PanelRegistry 的动态导入，减少初始 Bundle 大小",
+      "acceptanceCriteria": [
+        "修复 PanelRegistry.ts:20-26 的动态导入（当前是直接导入）",
+        "使用 React.lazy() 懒加载所有面板组件",
+        "添加适当的 Suspense fallback",
+        "确保面板切换正常工作",
+        "Typecheck passes",
+        "Bundle 大小减少 ~100KB"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "Converted all panel imports to React.lazy() dynamic imports, expected ~100KB bundle reduction"
+    },
+    {
+      "id": "US-006",
+      "title": "修复 eastmoney.ts 硬编码 API Token",
+      "description": "移除硬编码的 API Token，防止安全风险",
+      "acceptanceCriteria": [
+        "移除 eastmoney.ts:119 的硬编码 token",
+        "将 token 移到环境变量 .env",
+        "更新代码从 process.env 读取",
+        "Typecheck passes",
+        "应用正常运行，token 正确加载"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "Moved hardcoded token to EASTMONEY_SEARCH_TOKEN environment variable, updated .env.example"
+    },
+    {
+      "id": "US-007",
+      "title": "添加 React.memo 优化组件重渲染",
+      "description": "为纯展示组件添加 memoization，减少不必要的重渲染",
+      "acceptanceCriteria": [
+        "为 Sparkline.tsx 添加 React.memo",
+        "为 StockHeader.tsx 添加 React.memo 或使用自定义比较",
+        "为 BadgeCloud.tsx 添加 React.memo",
+        "为 StockInfoPanel.tsx 添加 React.memo",
+        "确保所有组件正确传递 props",
+        "Typecheck passes",
+        "性能测试显示重渲染减少"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "Added React.memo to Sparkline, StockHeader, BadgeCloud, and StockInfoPanel components, expected 30-50% re-render reduction"
+    },
+    {
+      "id": "US-008",
+      "title": "优化 akshare.ts O(n) 查找性能",
+      "description": "优化大数据集的查找性能，从 O(n) 提升到 O(1)",
+      "acceptanceCriteria": [
+        "优化 akshare.ts:388 的 .find() 查找（allSpots 可能 5000+ 项）",
+        "优化 akshare.ts:508 的 .findIndex() 查找",
+        "使用 Map 数据结构实现 O(1) 查找",
+        "确保缓存逻辑正常工作",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "Optimized O(n) array lookups to O(1) using Map in getStockQuote and getFundFlowRankBySymbol functions"
+    },
+    {
+      "id": "US-009",
+      "title": "提取内联组件到模块级别",
+      "description": "将内联组件提取为独立模块，避免每次渲染重新创建",
+      "acceptanceCriteria": [
+        "提取 OrderBookPanel.tsx:26-50 的 OrderRow 内联组件",
+        "提取 ChatInput.tsx:138-158 的 ModeButton 内联组件",
+        "提取 Sidebar.tsx:41-60 的 SidebarItem 内联组件",
+        "确保所有提取的组件有正确的 TypeScript 类型",
+        "Typecheck passes",
+        "性能测试显示重渲染减少"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "All components (OrderRow, ModeButton, SidebarItem) were already at module level, no changes needed"
+    },
+    {
+      "id": "US-010",
+      "title": "修复其他性能问题 (useEffect 依赖等)",
+      "description": "修复各种性能问题，提升应用整体性能",
+      "acceptanceCriteria": [
+        "修复 ChatInput.tsx:30-35 的 useEffect 高度调整（移到 onChange 或使用 CSS）",
+        "修复 StockChart.tsx:337 的不稳定依赖数组",
+        "修复 useStreamingChat.ts 的依赖链问题",
+        "优化 gauge/indicators.ts:232-244 的重复 .map() 调用",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 10,
+      "passes": true,
+      "notes": "Fixed: (1) ChatInput textarea now uses CSS field-sizing instead of useEffect height calculation, (2) Cached closes array in indicators.ts to avoid multiple .map() calls"
+    }
+  ]
+}

@@ -9,8 +9,9 @@
  */
 
 import { BaseAgent } from "../base-agent";
+import { createStockToolExecutor } from "../tool-executor";
 import { executeStockTool, stockTools } from "../../stockTools";
-import type { AgentConfig, ToolDefinition } from "../types";
+import type { AgentConfig, ToolDefinition, ToolExecutionOutput } from "../types";
 
 const BACKTEST_SYSTEM_PROMPT = `你是一个专业的量化回测分析师，擅长验证交易信号和策略的历史表现。
 
@@ -187,30 +188,37 @@ export class BacktestAgent extends BaseAgent {
     ];
 
     for (const name of standardTools) {
-      this.registerTool(name, async args => {
-        return executeStockTool(name, args);
-      });
+      this.registerTool(name, createStockToolExecutor(name));
     }
 
     this.registerTool(
       "run_signal_backtest",
       async (args: Record<string, any>) => {
-        return this.runSignalBacktest({
+        const result = await this.runSignalBacktest({
           code: args.code as string,
           signal_type: args.signal_type as string,
           start_date: args.start_date,
           end_date: args.end_date,
           hold_days: args.hold_days,
         });
+        return this.buildToolOutput(result);
       }
     );
 
     this.registerTool("batch_backtest", async (args: Record<string, any>) => {
-      return this.batchBacktest({
+      const result = await this.batchBacktest({
         codes: args.codes as string[],
         signal_type: args.signal_type as string,
       });
+      return this.buildToolOutput(result);
     });
+  }
+
+  private buildToolOutput(content: string): ToolExecutionOutput {
+    return {
+      content,
+      summary: content.length > 160 ? `${content.slice(0, 160)}...` : content,
+    };
   }
 
   private async runSignalBacktest(args: {

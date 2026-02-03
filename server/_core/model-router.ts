@@ -4,7 +4,7 @@
 
 import { ENV } from "./env";
 
-export type ModelProvider = "glm" | "grok" | "qwen" | "deepseek";
+export type ModelProvider = "glm" | "grok" | "deepseek";
 
 export interface ModelConfig {
   name: string;
@@ -49,20 +49,7 @@ const withPath = (base: string, path: string) =>
 export function getModelRegistry(): ModelConfig[] {
   const models: ModelConfig[] = [];
 
-  if (ENV.glmApiKey) {
-    models.push({
-      name: "GLM-4.7",
-      provider: "glm",
-      apiKey: ENV.glmApiKey,
-      endpoint: withPath(ENV.glmApiUrl, "/chat/completions"),
-      model: ENV.glmModel || "glm-4.7",
-      capabilities: ["chinese", "code", "agent", "fast"],
-      costTier: 2,
-      speedTier: 1,
-      maxTokens: 4096,
-    });
-  }
-
+  // Grok - 主力模型，速度快，用于指挥和决策
   if (ENV.grokApiKey) {
     models.push({
       name: "Grok",
@@ -70,37 +57,67 @@ export function getModelRegistry(): ModelConfig[] {
       apiKey: ENV.grokApiKey,
       endpoint: withPath(ENV.grokApiUrl, "/chat/completions"),
       model: ENV.grokModel || "grok-4-1-fast-reasoning",
-      capabilities: ["realtime_search", "research", "english"],
+      capabilities: [
+        "realtime_search",
+        "research",
+        "english",
+        "fast",
+        "orchestrator",
+      ],
       costTier: 3,
+      speedTier: 1, // 速度最快
+      maxTokens: 4096,
+    });
+  }
+
+  // GLM - 备用模型，量大管饱，中文优化
+  if (ENV.glmApiKey) {
+    models.push({
+      name: "GLM-4.7",
+      provider: "glm",
+      apiKey: ENV.glmApiKey,
+      endpoint: withPath(ENV.glmApiUrl, "/chat/completions"),
+      model: ENV.glmModel || "glm-4.7",
+      capabilities: ["chinese", "code", "agent"],
+      costTier: 2,
       speedTier: 2,
       maxTokens: 4096,
     });
   }
 
+  // DeepSeek-V3.2 - 工具执行者，便宜且强大
   if (ENV.forgeApiKey) {
     const forgeEndpoint = withPath(ENV.forgeApiUrl, "/v1/chat/completions");
 
     models.push({
-      name: "Qwen-72B",
-      provider: "qwen",
-      apiKey: ENV.forgeApiKey,
-      endpoint: forgeEndpoint,
-      model: "Qwen/Qwen2.5-72B-Instruct",
-      capabilities: ["chinese", "code", "general", "cheap"],
-      costTier: 1,
-      speedTier: 2,
-      maxTokens: 4096,
-    });
-
-    models.push({
-      name: "DeepSeek-V3",
+      name: "DeepSeek-V3.2",
       provider: "deepseek",
       apiKey: ENV.forgeApiKey,
       endpoint: forgeEndpoint,
-      model: "deepseek-ai/DeepSeek-V3",
-      capabilities: ["reasoning", "code", "math", "cheap", "fast"],
+      model: "deepseek-ai/DeepSeek-V3.2",
+      capabilities: [
+        "reasoning",
+        "code",
+        "math",
+        "cheap",
+        "fast",
+        "tool_calling",
+      ],
       costTier: 1,
       speedTier: 1,
+      maxTokens: 4096,
+    });
+
+    // DeepSeek-R1 - 深度推理，复杂分析
+    models.push({
+      name: "DeepSeek-R1",
+      provider: "deepseek",
+      apiKey: ENV.forgeApiKey,
+      endpoint: forgeEndpoint,
+      model: "deepseek-ai/DeepSeek-R1",
+      capabilities: ["reasoning", "math", "thinking"],
+      costTier: 2,
+      speedTier: 3, // 较慢但深度推理
       maxTokens: 4096,
     });
   }
@@ -181,7 +198,9 @@ export async function invokeModel(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`${model.name} API error: ${response.status} - ${errorText}`);
+    throw new Error(
+      `${model.name} API error: ${response.status} - ${errorText}`
+    );
   }
 
   const data = await response.json();

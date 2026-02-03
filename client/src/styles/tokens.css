@@ -1,0 +1,447 @@
+/* ==========================================================================
+   DragonFly Design Tokens
+   Three-tier token system: Primitive → Semantic → Component
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Layer 1: Primitive Tokens (Pure color values)
+   -------------------------------------------------------------------------- */
+:root {
+  /* Grayscale */
+  --primitive-black: #000000;
+  --primitive-white: #ffffff;
+  --primitive-gray-50: #f9fafb;
+  --primitive-gray-100: #f3f4f6;
+  --primitive-gray-200: #e5e7eb;
+  --primitive-gray-300: #d1d5db;
+  --primitive-gray-400: #9ca3af;
+  --primitive-gray-500: #6b7280;
+  --primitive-gray-600: #4b5563;
+  --primitive-gray-700: #374151;
+  --primitive-gray-800: #1f2937;
+  --primitive-gray-900: #111827;
+  --primitive-gray-950: #030712;
+
+  /* Brand Colors */
+  --primitive-blue-400: #60a5fa;
+  --primitive-blue-500: #3b82f6;
+  --primitive-blue-600: #2563eb;
+
+  /* Status Colors */
+  --primitive-red-400: #f87171;
+  --primitive-red-500: #ef4444;
+  --primitive-red-600: #dc2626;
+
+  --primitive-green-400: #4ade80;
+  --primitive-green-500: #10b981;
+  --primitive-green-600: #059669;
+
+  --primitive-orange-400: #fb923c;
+  --primitive-orange-500: #f97316;
+
+  --primitive-yellow-400: #facc15;
+  --primitive-yellow-500: #eab308;
+}
+
+/* --------------------------------------------------------------------------
+   Layer 2: Semantic Tokens (Context-aware meanings)
+   Default theme (Dark mode as base)
+   D-003: Visual Style Refinement - Neon Cyan Theme
+   开始时间: 2026-01-30 00:40:00
+   -------------------------------------------------------------------------- */
+:root {
+  /* Backgrounds - D-003: 使用 #0A0F1C */
+  --bg-primary: #0a0f1c;
+  --bg-secondary: #0d1220;
+  --bg-tertiary: #111827;
+  --bg-elevated: #141b2d;
+
+  /* Text */
+  --text-primary: #e5e7eb;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --text-inverted: #0a0a0a;
+
+  /* Typography - 苹方 + 思源黑体 优先 */
+  --font-sans:
+    "PingFang SC", "SF Pro SC", "SF Pro Text", -apple-system, BlinkMacSystemFont,
+    "Source Han Sans SC", "Noto Sans SC", "Microsoft YaHei", "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  --font-numeric:
+    "SF Mono", "Monaco", "Menlo", "Consolas", "Courier New", monospace;
+
+  /* Font sizes - MiniMax 风格 +10% (17px base) */
+  --font-size-xs: 13px;
+  --font-size-sm: 15px;
+  --font-size-base: 17px;
+  --font-size-lg: 19px;
+  --font-size-xl: 21px;
+  --font-size-2xl: 24px;
+
+  /* Line heights - Increased for breathing room */
+  --leading-tight: 1.4;
+  --leading-normal: 1.6;
+  --leading-relaxed: 1.75;
+
+  /* Panels - 更淡的边框，减少"表格感" */
+  --panel-bg: #0a0a0a;
+  --panel-border: rgba(255, 255, 255, 0.06);
+  --panel-hover: #1f1f1f;
+
+  /* Glassmorphism - 更柔和的玻璃效果 */
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-blur: 12px;
+
+  /* Accent / Brand - D-003: Neon Cyan #06B6D4 */
+  --accent-primary: #06b6d4;
+  --accent-primary-hover: #0891b2;
+  --accent-primary-muted: rgba(6, 182, 212, 0.2);
+  --accent-glow: rgba(6, 182, 212, 0.5);
+
+  /* Stock Colors (Up/Down) - A股: 红涨绿跌 */
+  --color-up: #ef4444;
+  --color-up-bg: rgba(239, 68, 68, 0.1);
+  --color-down: #10b981;
+  --color-down-bg: rgba(16, 185, 129, 0.1);
+  --color-neutral: #9ca3af;
+
+  /* Interactive States - D-003: Neon Cyan Focus */
+  --focus-ring: rgba(6, 182, 212, 0.5);
+  --hover-overlay: rgba(6, 182, 212, 0.05);
+  --active-overlay: rgba(6, 182, 212, 0.1);
+
+  /* Shadows - D-003: Neon Cyan Glow Effects */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --shadow-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 15px rgba(6, 182, 212, 0.3);
+  --shadow-glow-lg: 0 0 25px rgba(6, 182, 212, 0.4);
+  --shadow-glow-intense:
+    0 0 30px rgba(6, 182, 212, 0.6), 0 0 60px rgba(6, 182, 212, 0.3);
+
+  /* Dividers - 更淡的分割线 */
+  --divider: rgba(255, 255, 255, 0.06);
+  --divider-subtle: rgba(255, 255, 255, 0.04);
+
+  /* 边框层级系统 */
+  --color-border-light: rgba(255, 255, 255, 0.04);
+  --color-border-base: rgba(255, 255, 255, 0.08);
+}
+
+/* --------------------------------------------------------------------------
+   Layer 3: Component Tokens
+   -------------------------------------------------------------------------- */
+:root {
+  /* Buttons */
+  --btn-primary-bg: var(--accent-primary);
+  --btn-primary-text: var(--primitive-white);
+  --btn-primary-hover: var(--accent-primary-hover);
+
+  --btn-secondary-bg: var(--bg-secondary);
+  --btn-secondary-text: var(--text-primary);
+  --btn-secondary-hover: var(--bg-tertiary);
+  --btn-secondary-border: var(--panel-border);
+
+  --btn-ghost-text: var(--text-secondary);
+  --btn-ghost-hover-bg: var(--hover-overlay);
+
+  /* Input */
+  --input-bg: var(--bg-tertiary);
+  --input-border: var(--panel-border);
+  --input-text: var(--text-primary);
+  --input-placeholder: var(--text-muted);
+  --input-focus-border: var(--accent-primary);
+
+  /* Tabs */
+  --tab-text: var(--text-secondary);
+  --tab-text-active: var(--text-primary);
+  --tab-indicator: var(--accent-primary);
+  --tab-hover-bg: var(--hover-overlay);
+
+  /* Cards */
+  --card-bg: var(--bg-secondary);
+  --card-border: var(--panel-border);
+  --card-hover-border: var(--accent-primary);
+
+  /* Badges */
+  --badge-default-bg: var(--bg-secondary);
+  --badge-default-text: var(--text-secondary);
+  --badge-success-bg: var(--color-up-bg);
+  --badge-success-text: var(--color-up);
+  --badge-danger-bg: var(--color-down-bg);
+  --badge-danger-text: var(--color-down);
+
+  /* Tooltip */
+  --tooltip-bg: var(--bg-elevated);
+  --tooltip-text: var(--text-primary);
+  --tooltip-border: var(--panel-border);
+
+  /* Scrollbar */
+  --scrollbar-track: var(--bg-primary);
+  --scrollbar-thumb: var(--bg-tertiary);
+  --scrollbar-thumb-hover: var(--text-muted);
+
+  /* Chart specific - A股: 红涨绿跌 */
+  --chart-grid: #1f2937;
+  --chart-crosshair: #6b7280;
+  --chart-line-up: var(--color-up);
+  --chart-line-down: var(--color-down);
+  --chart-volume-up: rgba(239, 68, 68, 0.5);
+  --chart-volume-down: rgba(16, 185, 129, 0.5);
+}
+
+/* --------------------------------------------------------------------------
+    Custom Scrollbar Styling - Minimalist 3px scrollbar
+    -------------------------------------------------------------------------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+*:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+}
+
+*:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+*:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Chat list specific - 更隐蔽的滚动条 */
+.chat-list-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.chat-list-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.chat-list-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-list-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.chat-list-scroll:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Font smoothing */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+::selection {
+  background: var(--accent-primary);
+  color: white;
+}
+
+[数据-panel-resize-handle-id] {
+  position: relative;
+}
+
+/* Resize Handle */
+[data-panel-resize-handle-id] {
+  position: relative;
+}
+
+[data-panel-resize-handle-id]::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 32px;
+  border-radius: 2px;
+  background: var(--panel-border);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+[data-panel-resize-handle-id]:hover::after,
+[data-panel-resize-handle-id][data-resize-handle-active]::after {
+  opacity: 1;
+  background: var(--accent-primary);
+}
+
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+}
+
+.price-display {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* --------------------------------------------------------------------------
+   Responsive Design Utilities
+   -------------------------------------------------------------------------- */
+
+/* Hide scrollbar but keep functionality */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Responsive text sizing */
+@media (max-width: 640px) {
+  :root {
+    --text-base-size: 13px;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  :root {
+    --text-base-size: 14px;
+  }
+}
+
+@media (min-width: 1025px) {
+  :root {
+    --text-base-size: 14px;
+  }
+}
+
+/* Ultra-wide support */
+@media (min-width: 2560px) {
+  :root {
+    --max-content-width: 1400px;
+  }
+}
+
+/* Mobile-first panel behavior */
+@media (max-width: 1023px) {
+
+  /* Hide desktop stock panel on mobile/tablet */
+  [data-panel-id="stock-panel"] {
+    display: none !important;
+  }
+}
+
+/* Ensure proper text rendering */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* --------------------------------------------------------------------------
+   Global Font Size - Base 14px for consistency
+   -------------------------------------------------------------------------- */
+:root {
+  /* 字体大小系统 - 调大一号 */
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-base: 15px;
+  --font-size-lg: 17px;
+  --font-size-xl: 19px;
+  --font-size-2xl: 22px;
+}
+
+/* 字号调节 - small/medium/large */
+:root[data-font-scale="small"] {
+  --font-size-xs: 11px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 20px;
+}
+
+:root[data-font-scale="medium"] {
+  --font-size-xs: 13px;
+  --font-size-sm: 15px;
+  --font-size-base: 17px;
+  --font-size-lg: 19px;
+  --font-size-xl: 21px;
+  --font-size-2xl: 24px;
+}
+
+:root[data-font-scale="large"] {
+  --font-size-xs: 15px;
+  --font-size-sm: 17px;
+  --font-size-base: 19px;
+  --font-size-lg: 22px;
+  --font-size-xl: 25px;
+  --font-size-2xl: 28px;
+}
+
+html {
+  font-size: var(--font-size-base);
+}
+
+body {
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+}
+
+/* Typography scale using CSS variables */
+.text-xs {
+  font-size: var(--font-size-xs);
+}
+
+/* 12px - timestamps, labels */
+.text-sm {
+  font-size: var(--font-size-sm);
+}
+
+/* 13px - secondary text */
+.text-base {
+  font-size: var(--font-size-base);
+}
+
+/* 14px - base body text */
+.text-lg {
+  font-size: var(--font-size-lg);
+}
+
+/* 16px - headings */
+.text-xl {
+  font-size: var(--font-size-xl);
+}
+
+/* 18px - large headings */
+.text-2xl {
+  font-size: var(--font-size-2xl);
+}
+
+/* 20px - titles */

@@ -1,6 +1,46 @@
 import { publicProcedure, router } from "../_core/trpc";
 import * as eastmoney from "../eastmoney";
 import { z } from "zod";
+import { runAgentStream } from "../_core/agent/runner";
+import type { StockContextData } from "../_core/smartStreamChat";
+
+const stockContextSchema = z
+  .object({
+    quote: z
+      .object({
+        name: z.string().optional(),
+        code: z.string().optional(),
+        price: z.number().optional(),
+        change: z.number().optional(),
+        changePercent: z.number().optional(),
+        open: z.number().optional(),
+        high: z.number().optional(),
+        low: z.number().optional(),
+        preClose: z.number().optional(),
+        volume: z.number().optional(),
+        amount: z.number().optional(),
+        turnoverRate: z.number().optional(),
+        pe: z.number().optional(),
+        pb: z.number().optional(),
+        marketCap: z.number().optional(),
+        circulationMarketCap: z.number().optional(),
+        volumeRatio: z.number().optional(),
+      })
+      .nullable()
+      .optional(),
+    capitalFlow: z
+      .object({
+        mainNetInflow: z.number().optional(),
+        superLargeNetInflow: z.number().optional(),
+        largeNetInflow: z.number().optional(),
+        mediumNetInflow: z.number().optional(),
+        smallNetInflow: z.number().optional(),
+      })
+      .nullable()
+      .optional(),
+  })
+  .nullable()
+  .optional();
 
 export const aiRouter = router({
   // 创建新会话
@@ -36,8 +76,7 @@ export const aiRouter = router({
         : null;
 
       if (!session && input?.stockCode) {
-        session =
-          sessionStore.findSessionsByStock(input.stockCode)[0] || null;
+        session = sessionStore.findSessionsByStock(input.stockCode)[0] || null;
       }
 
       if (!session) {
@@ -117,9 +156,7 @@ export const aiRouter = router({
       const { getSessionStore } = await import("../_core/session");
       const sessionStore = getSessionStore();
       const runs = sessionStore.getTodoRuns(input.sessionId);
-      return (
-        [...runs].reverse().find(run => run.status !== "running") || null
-      );
+      return [...runs].reverse().find(run => run.status !== "running") || null;
     }),
 
   // 保存聊天历史 (手动)
@@ -176,8 +213,11 @@ export const aiRouter = router({
       // 如果提供了股票代码，获取股票数据作为上下文
       if (input.stockCode) {
         try {
-          const quote = await eastmoney.getStockQuote(input.stockCode);
-          const klines = await eastmoney.getKlineData(input.stockCode, "day");
+          // 并行获取行情和K线数据
+          const [quote, klines] = await Promise.all([
+            eastmoney.getStockQuote(input.stockCode),
+            eastmoney.getKlineData(input.stockCode, "day"),
+          ]);
           const recentKlines = klines.slice(-10); // 最近10天的数据
 
           // 计算一些基础指标
@@ -258,9 +298,7 @@ ${stockContext}`;
 
         const content = response.choices[0]?.message?.content;
         const finalContent =
-          typeof content === "string"
-            ? content
-            : "抱歉，生成回复时出现问题。";
+          typeof content === "string" ? content : "抱歉，生成回复时出现问题。";
 
         sessionStore.addMessage(session.id, {
           role: "assistant",
@@ -278,6 +316,102 @@ ${stockContext}`;
           success: false,
           content: "抱歉，AI服务暂时不可用，请稍后再试。",
           sessionId: session.id,
+        };
+      }
+    }),
+
+  // 流式 AI 对话 - 使用 async generator
+  streamChat: publicProcedure
+    .input(
+      z.object({
+        messages: z.array(
+          z.object({
+            role: z.enum(["system", "user", "assistant"]),
+            content: z.string(),
+          })
+        ),
+        sessionId: z.string().optional(),
+        stockCode: z.string().optional(),
+        stockContext: stockContextSchema,
+        thinkHard: z.boolean().optional(),
+      })
+    )
+    .mutation(async function* ({ input }) {
+      const { getSessionStore } = await import("../_core/session");
+
+      const sessionStore = getSessionStore();
+      const session = sessionStore.getOrCreateSession(
+        input.sessionId,
+        input.stockCode
+      );
+
+      if (input.messages.length > 0) {
+        sessionStore.setMessages(session.id, input.messages);
+      }
+
+      const userMessages = input.messages.filter(m => m.role === "user");
+      const lastUserMessage =
+        userMessages[userMessages.length - 1]?.content || "";
+
+      try {
+        if (!lastUserMessage) {
+          const runId = `run_${Date.now()}`;
+          const timestamp = Date.now();
+          yield {
+            eventVersion: 1,
+            id: `${runId}:1`,
+            runId,
+            type: "error",
+            timestamp,
+            data: { message: "Missing user message" },
+          };
+          yield {
+            eventVersion: 1,
+            id: `${runId}:2`,
+            runId,
+            type: "run_end",
+            timestamp: timestamp + 1,
+            data: {
+              sessionId: session.id,
+              status: "error",
+              error: "Missing user message",
+            },
+          };
+          return;
+        }
+
+        for await (const event of runAgentStream({
+          message: lastUserMessage,
+          sessionId: session.id,
+          stockCode: input.stockCode,
+          stockContext: input.stockContext as StockContextData | null,
+          thinkHard: input.thinkHard,
+        })) {
+          yield event;
+        }
+      } catch (error) {
+        console.error("Stream error:", error);
+        const runId = `run_${Date.now()}`;
+        const timestamp = Date.now();
+        yield {
+          eventVersion: 1,
+          id: `${runId}:1`,
+          runId,
+          type: "error",
+          timestamp,
+          data: { message: "Stream failed" },
+        };
+        yield {
+          eventVersion: 1,
+          id: `${runId}:2`,
+          runId,
+          type: "run_end",
+          timestamp: timestamp + 1,
+          data: {
+            sessionId: session.id,
+            status: "error",
+            error: "Stream failed",
+          },
         };
       }
     }),

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1600" height="900" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .bg { fill: #0b1120; }
+    .panel { fill: #020617; stroke: #1f2937; stroke-width: 2; rx: 12; ry: 12; }
+    .col { fill: #020617; stroke: #1e293b; stroke-width: 2; rx: 12; ry: 12; }
+    .header { fill: #020617; stroke: #1e293b; stroke-width: 2; }
+    .text-title { fill: #e5e7eb; font-size: 24px; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .text-sub { fill: #9ca3af; font-size: 18px; font-family: system-ui; }
+    .text-small { fill: #9ca3af; font-size: 14px; font-family: system-ui; }
+    .pill { fill: #111827; stroke: #374151; stroke-width: 1; rx: 10; ry: 10; }
+    .pill-text { fill: #e5e7eb; font-size: 13px; font-family: system-ui; }
+    .border-dashed { stroke-dasharray: 6 6; }
+  </style>
+
+  <!-- 背景 -->
+  <rect class="bg" x="0" y="0" width="1600" height="900"/>
+
+  <!-- 顶部标题 -->
+  <text x="40" y="60" class="text-title">AI 交易工具 · 三栏布局与数据流</text>
+  <text x="40" y="90" class="text-sub">中间聊天 · 右侧股票工作台 · 左侧导航 / 自选列表</text>
+
+  <!-- 顶部导航栏 -->
+  <rect class="header" x="40" y="110" width="1520" height="60" rx="12" ry="12" fill="#020617"/>
+  <text x="70" y="147" class="text-small">Header · 顶部导航 / Logo / 模式切换</text>
+
+  <!-- 左侧栏 -->
+  <rect class="col" x="40" y="190" width="260" height="650"/>
+  <text x="60" y="220" class="text-sub">左侧 Sidebar</text>
+  <text x="60" y="250" class="text-small">• 导航 / 项目</text>
+  <text x="60" y="275" class="text-small">• 自选股票列表</text>
+  <text x="60" y="300" class="text-small">• 最近对话 / 任务</text>
+
+  <!-- 中间聊天区域 -->
+  <rect class="col" x="320" y="190" width="640" height="650"/>
+  <text x="340" y="220" class="text-sub">中间 · Chat Workspace</text>
+
+  <!-- 聊天消息列表 -->
+  <rect class="panel" x="340" y="245" width="600" height="430"/>
+  <text x="360" y="275" class="text-small">消息列表（流式渲染）</text>
+  <text x="360" y="305" class="text-small">• User Message</text>
+  <text x="360" y="330" class="text-small">• Assistant Message（Markdown）</text>
+  <text x="360" y="355" class="text-small">• Tool Request / Result 卡片</text>
+  <text x="360" y="380" class="text-small">• Thinking 摘要（可折叠）</text>
+
+  <!-- 聊天输入框 -->
+  <rect class="panel" x="340" y="695" width="600" height="125"/>
+  <text x="360" y="725" class="text-small">输入框 + 模式选择（分析 / 交易 / 学习）</text>
+
+  <!-- 右侧股票工作台 -->
+  <rect class="col" x="980" y="190" width="580" height="650"/>
+  <text x="1000" y="220" class="text-sub">右侧 · Stock Workspace</text>
+
+  <!-- Symbol Selector -->
+  <rect class="panel" x="1000" y="245" width="540" height="70"/>
+  <text x="1020" y="275" class="text-small">Symbol Selector · 当前股票 + 搜索框</text>
+
+  <!-- Panel Tabs -->
+  <rect class="panel" x="1000" y="325" width="540" height="60"/>
+  <text x="1020" y="360" class="text-small">面板 Tabs：K线 / 分时 / 盘口 / 指标 / 建议 / 资讯</text>
+
+  <!-- Active Panel Content -->
+  <rect class="panel" x="1000" y="395" width="540" height="345"/>
+  <text x="1020" y="425" class="text-small">Active Panel Content</text>
+  <text x="1020" y="450" class="text-small">• KLinePanel：Lightweight Charts K 线</text>
+  <text x="1020" y="475" class="text-small">• IntradayPanel：分时线</text>
+  <text x="1020" y="500" class="text-small">• OrderBookPanel：盘口</text>
+  <text x="1020" y="525" class="text-small">• IndicatorsPanel：PE / PB / ROE ...</text>
+  <text x="1020" y="550" class="text-small">• AdvicePanel：AI 建议</text>
+  <text x="1020" y="575" class="text-small">• NewsPanel：资讯</text>
+
+  <!-- 数据流箭头：聊天 → 建议面板 -->
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L6,3 z" fill="#f97316" />
+    </marker>
+  </defs>
+
+  <line x1="640" y1="460" x2="1000" y2="460" stroke="#f97316" stroke-width="2" marker-end="url(#arrow)" class="border-dashed"/>
+  <text x="670" y="445" class="text-small" fill="#fb923c">对话工具结果 → 更新右侧 Advice / 指标 面板</text>
+
+  <!-- 数据流箭头：行情 → 右侧面板 & 中间摘要 -->
+  <line x1="1300" y1="780" x2="1300" y2="650" stroke="#22c55e" stroke-width="2" marker-end="url(#arrow)" class="border-dashed"/>
+  <text x="1130" y="800" class="text-small" fill="#22c55e">WebSocket 行情 → K线 / 分时 / 盘口</text>
+
+  <line x1="1300" y1="780" x2="640" y2="650" stroke="#22c55e" stroke-width="2" marker-end="url(#arrow)" class="border-dashed"/>
+  <text x="760" y="770" class="text-small" fill="#22c55e">行情摘要 → AI 对话引用（例如最新价 / 涨跌幅）</text>
+
+  <!-- SSE 数据流：对话流式 -->
+  <line x1="640" y1="200" x2="900" y2="120" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow)" class="border-dashed"/>
+  <text x="650" y="190" class="text-small" fill="#38bdf8">SSE /chat/stream → 中间聊天流式输出</text>
+
+  <!-- WebSocket / SSE 图例 -->
+  <rect x="40" y="820" width="520" height="60" rx="12" ry="12" fill="#020617" stroke="#1f2937" stroke-width="2"/>
+  <circle cx="70" cy="850" r="6" fill="#38bdf8"/>
+  <text x="85" y="855" class="text-small">SSE：/api/chat/stream（LLM 对话流）</text>
+
+  <circle cx="340" cy="850" r="6" fill="#22c55e"/>
+  <text x="355" y="855" class="text-small">WebSocket：/market（行情 tick / 盘口）</text>
+
+</svg>

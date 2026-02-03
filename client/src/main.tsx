@@ -1,14 +1,14 @@
 import { trpc } from "@/lib/trpc";
 import { UNAUTHED_ERR_MSG } from "@shared/const";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { httpBatchLink, TRPCClientError } from "@trpc/client";
+import { httpBatchStreamLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
-import { ThemeProvider } from "@/refactor_v2/contexts/ThemeContext";
-import { HomePage } from "@/refactor_v2/pages/HomePage";
+import { ThemeProvider } from "@/contexts/ThemeContext";
+import { HomePage } from "@/pages/HomePage";
 import { getLoginUrl } from "./const";
-import "@/refactor_v2/styles/tokens.css";
-import "@/refactor_v2/styles/themes/index.css";
+import "@/styles/tokens.css";
+import "@/styles/themes/index.css";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -63,7 +63,7 @@ queryClient.getMutationCache().subscribe(event => {
 
 const trpcClient = trpc.createClient({
   links: [
-    httpBatchLink({
+    httpBatchStreamLink({
       url: "/api/trpc",
       transformer: superjson,
       fetch(input, init) {

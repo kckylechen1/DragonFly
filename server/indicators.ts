@@ -229,18 +229,11 @@ export function analyzeTechnicalIndicators(data: KlineData[]) {
 
   const macd = calculateMACD(data);
   const rsi = calculateRSI(data, 14);
-  const ma5 = calculateSMA(
-    data.map(d => d.close),
-    5
-  );
-  const ma20 = calculateSMA(
-    data.map(d => d.close),
-    20
-  );
-  const ma60 = calculateSMA(
-    data.map(d => d.close),
-    60
-  );
+  // 缓存 closes 数组，避免多次 .map() 调用
+  const closes = data.map(d => d.close);
+  const ma5 = calculateSMA(closes, 5);
+  const ma20 = calculateSMA(closes, 20);
+  const ma60 = calculateSMA(closes, 60);
 
   const signals: string[] = [];
   let score = 50; // 基础分数

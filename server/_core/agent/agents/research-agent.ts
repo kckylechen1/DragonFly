@@ -9,7 +9,8 @@
  */
 
 import { BaseAgent } from "../base-agent";
-import { executeStockTool, stockTools } from "../../stockTools";
+import { createStockToolExecutor } from "../tool-executor";
+import { stockTools } from "../../stockTools";
 import type { AgentConfig, ToolDefinition } from "../types";
 
 const RESEARCH_SYSTEM_PROMPT = `你是一个专业的A股研究员，擅长收集多源数据并生成深度研究报告。
@@ -114,9 +115,7 @@ export class ResearchAgent extends BaseAgent {
     const toolNames = RESEARCH_TOOLS.map(t => t.function.name);
 
     for (const name of toolNames) {
-      this.registerTool(name, async args => {
-        return executeStockTool(name, args);
-      });
+      this.registerTool(name, createStockToolExecutor(name));
     }
   }
 }

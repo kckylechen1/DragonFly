@@ -78,14 +78,15 @@ export const stocksRouter = router({
       throw new Error("Invalid input");
     })
     .query(async ({ input }) => {
-      // 并行获取数据
+      // 并行获取数据 - 使用 Promise.all 优化性能
       const akshare = await import("../akshare");
-      const quote = await getQuoteWithFallback(input.code);
-      const rankData = await getCachedRankData(input.code);
-      const stockInfo = await akshare.getStockInfo(input.code);
 
-      // 获取资金流向
-      const capitalFlowData = await fundflow.getStockFundFlow(input.code);
+      const [quote, rankData, stockInfo, capitalFlowData] = await Promise.all([
+        getQuoteWithFallback(input.code),
+        getCachedRankData(input.code),
+        akshare.getStockInfo(input.code),
+        fundflow.getStockFundFlow(input.code),
+      ]);
 
       return {
         stock: stockInfo,
@@ -129,12 +130,21 @@ export const stocksRouter = router({
       // 数据源1：Eastmoney（主数据源，免费无配额限制）
       try {
         const eastmoneyData = await eastmoney.getTimelineData(input.code, days);
-        if (eastmoneyData && eastmoneyData.timeline && eastmoneyData.timeline.length > 0) {
-          console.log(`[getTimeline] Eastmoney returned ${eastmoneyData.timeline.length} points`);
+        if (
+          eastmoneyData &&
+          eastmoneyData.timeline &&
+          eastmoneyData.timeline.length > 0
+        ) {
+          console.log(
+            `[getTimeline] Eastmoney returned ${eastmoneyData.timeline.length} points`
+          );
           return eastmoneyData;
         }
       } catch (eastmoneyError: any) {
-        console.warn("[getTimeline] Eastmoney failed:", eastmoneyError?.message);
+        console.warn(
+          "[getTimeline] Eastmoney failed:",
+          eastmoneyError?.message
+        );
       }
 
       // 数据源2：iFinD（备选，配额有限，暂时禁用以保护配额）
@@ -152,15 +162,15 @@ export const stocksRouter = router({
       return { preClose: 0, timeline: [] };
     }),
 
-
   // 获取K线数据
   getKline: publicProcedure
-    .input((val: unknown) => {
-      if (typeof val === "object" && val !== null && "code" in val) {
-        return val as { code: string; period?: string; limit?: number };
-      }
-      throw new Error("Invalid input");
-    })
+    .input(
+      z.object({
+        code: z.string(),
+        period: z.string().optional().default("day"),
+        limit: z.number().optional().default(60),
+      })
+    )
     .query(async ({ input }) => {
       try {
         const period = (input.period || "day") as
@@ -170,6 +180,51 @@ export const stocksRouter = router({
           | "minute";
         const limit = input.limit || 60;
 
+        // 市场检测：美股（纯字母）或港股（.HK后缀或5位数字）
+        const isUSStock = /^[A-Za-z]+$/.test(input.code);
+        const isHKStock =
+          /^\d{4,5}\.HK$/i.test(input.code) ||
+          (/^\d{5}$/.test(input.code) && !input.code.startsWith("6") && !input.code.startsWith("0") && !input.code.startsWith("3"));
+
+        // 美股/港股使用 Yahoo Finance
+        if (isUSStock || isHKStock) {
+          try {
+            const yahoofinance = await import("../yahoofinance");
+            // 转换 period 格式：day -> 1mo, week -> 3mo, month -> 1y
+            const yahooPeriod =
+              period === "day"
+                ? "1mo"
+                : period === "week"
+                  ? "3mo"
+                  : "1y";
+            const yahooKlines = await yahoofinance.getKlineData(
+              input.code,
+              yahooPeriod
+            );
+            if (yahooKlines && yahooKlines.length > 0) {
+              console.log(
+                `[getKline] Yahoo Finance returned ${yahooKlines.length} bars for ${input.code}`
+              );
+              return yahooKlines.slice(-limit).map((item: any) => ({
+                time: item.timestamp || item.time,
+                open: item.open,
+                high: item.high,
+                low: item.low,
+                close: item.close,
+                volume: item.volume,
+              }));
+            }
+          } catch (yahooError: any) {
+            console.warn(
+              `[getKline] Yahoo Finance failed for ${input.code}:`,
+              yahooError?.message
+            );
+          }
+          // 如果 Yahoo Finance 失败，返回空数组
+          return [];
+        }
+
+        // A股继续使用 Eastmoney
         if (period === "minute") {
           const days = Math.max(1, Math.ceil(limit / 240));
           let timeline: any[] = [];
@@ -182,7 +237,9 @@ export const stocksRouter = router({
             );
             if (eastmoneyTimeline?.timeline?.length) {
               timeline = eastmoneyTimeline.timeline;
-              console.log(`[getKline] Eastmoney minute returned ${timeline.length} points`);
+              console.log(
+                `[getKline] Eastmoney minute returned ${timeline.length} points`
+              );
             }
           } catch (eastmoneyError: any) {
             console.warn(
@@ -215,7 +272,10 @@ export const stocksRouter = router({
 
         // 数据源1：Eastmoney（主数据源，免费无配额限制）
         try {
-          const eastmoneyKlines = await eastmoney.getKlineData(input.code, period);
+          const eastmoneyKlines = await eastmoney.getKlineData(
+            input.code,
+            period
+          );
           if (eastmoneyKlines && eastmoneyKlines.length > 0) {
             klines = eastmoneyKlines.slice(-limit);
             console.log(`[getKline] Eastmoney returned ${klines.length} bars`);
@@ -224,12 +284,64 @@ export const stocksRouter = router({
           console.warn("[getKline] Eastmoney failed:", eastmoneyError?.message);
         }
 
-        // 数据源2：AKShare（免费备选）
+        // 数据源2：新浪财经 K线（备选）
+        if (!klines.length) {
+          try {
+            const axios = await import("axios");
+            // 判断市场
+            const market = input.code.startsWith("6") ? "sh" : "sz";
+            const sinaCode = `${market}${input.code}`;
+            
+            // 新浪财经日K线接口
+            const url = `https://quotes.sina.cn/cn/api/jsonp.php/var%20_${sinaCode}_${period}/CN_MarketDataService.getKLineData?symbol=${sinaCode}&scale=${period === "day" ? 240 : period === "week" ? 1200 : 7200}&ma=no&datalen=${limit}`;
+            
+            const response = await axios.default.get(url, {
+              timeout: 10000,
+              headers: {
+                "User-Agent": "Mozilla/5.0",
+                "Referer": "https://finance.sina.com.cn/",
+              },
+            });
+            
+            // 解析 JSONP
+            const text = response.data;
+            if (typeof text === "string") {
+              const match = text.match(/\[[\s\S]*\]/);
+              if (match) {
+                const data = JSON.parse(match[0]);
+                if (data && data.length > 0) {
+                  klines = data.map((item: any) => ({
+                    time: item.day,
+                    open: parseFloat(item.open),
+                    high: parseFloat(item.high),
+                    low: parseFloat(item.low),
+                    close: parseFloat(item.close),
+                    volume: parseInt(item.volume),
+                  }));
+                  console.log(`[getKline] Sina returned ${klines.length} bars`);
+                }
+              }
+            }
+          } catch (sinaError: any) {
+            console.warn("[getKline] Sina failed:", sinaError?.message);
+          }
+        }
+
+        // 数据源3：AKShare（免费备选）
         if (!klines.length) {
           try {
             const akshare = await import("../akshare");
-            const akPeriod = period === "day" ? "daily" : period === "week" ? "weekly" : "monthly";
-            const akshareKlines = await akshare.getStockHistory(input.code, akPeriod, limit);
+            const akPeriod =
+              period === "day"
+                ? "daily"
+                : period === "week"
+                  ? "weekly"
+                  : "monthly";
+            const akshareKlines = await akshare.getStockHistory(
+              input.code,
+              akPeriod,
+              limit
+            );
             if (akshareKlines && akshareKlines.length > 0) {
               // 转换 AKShare 格式
               klines = akshareKlines.map((item: any) => ({
@@ -332,11 +444,12 @@ export const stocksRouter = router({
         const stocksWithScores = await Promise.all(
           watchlist.map(async stock => {
             try {
-              // 获取K线数据
-              const klines = await eastmoney.getKlineData(
-                stock.stockCode,
-                "day"
-              );
+              // 并行获取K线数据和实时行情
+              const [klines, quote] = await Promise.all([
+                eastmoney.getKlineData(stock.stockCode, "day"),
+                eastmoney.getStockQuote(stock.stockCode),
+              ]);
+
               const recentKlines = klines.slice(-80);
 
               if (recentKlines.length < 30) {
@@ -355,9 +468,6 @@ export const stocksRouter = router({
 
               // 计算Gauge评分
               const gaugeScore = calculateGaugeScore(formattedKlines);
-
-              // 获取实时行情
-              const quote = await eastmoney.getStockQuote(stock.stockCode);
 
               return {
                 code: stock.stockCode,

@@ -1,0 +1,20 @@
+{
+  "project": "Example Project",
+  "branchName": "ralph/example-feature",
+  "description": "Example feature to demonstrate Ralph format",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add example field to database",
+      "description": "As a developer, I need to store example data in the database.",
+      "acceptanceCriteria": [
+        "Add example column to relevant table",
+        "Generate and run migration successfully",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

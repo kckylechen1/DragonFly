@@ -1,0 +1,79 @@
+/* Manus Theme
+   Clean, minimal light theme inspired by Manus AI.
+   Soft grays, generous whitespace, subtle shadows.
+ */
+[data-theme="manus"] {
+  /* 字体系统 - Apple原生风格 */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto,
+    sans-serif;
+  --font-mono: "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Backgrounds - Soft, near-white palette */
+  --bg-primary: #fafafa;
+  --bg-secondary: #f5f5f5;
+  --bg-tertiary: #eeeeee;
+  --bg-elevated: #ffffff;
+
+  /* Text - Subtle grayscale hierarchy */
+  --text-primary: #171717;
+  --text-secondary: #525252;
+  --text-muted: #737373;
+  --text-disabled: #a3a3a3;
+  --text-inverted: #ffffff;
+
+  /* Panels */
+  --panel-bg: #ffffff;
+  --panel-border: #e5e5e5;
+  --panel-border-hover: #d4d4d4;
+  --panel-hover: #fafafa;
+
+  /* Accent - Sophisticated slate/blue-gray */
+  --accent-primary: #3b3b3b;
+  --accent-primary-hover: #262626;
+  --accent-primary-muted: rgba(59, 59, 59, 0.1);
+  --accent-secondary: #525252;
+
+  /* Stock Colors - Muted versions */
+  --color-up: #16a34a;
+  --color-up-bg: rgba(22, 163, 74, 0.08);
+  --color-down: #dc2626;
+  --color-down-bg: rgba(220, 38, 38, 0.08);
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+
+  /* Message Colors */
+  --message-bg-user: #f0f0f0;
+  --message-bg-ai: transparent;
+
+  /* Interactive States */
+  --focus-ring: rgba(59, 59, 59, 0.25);
+  --hover-overlay: rgba(0, 0, 0, 0.03);
+  --active-overlay: rgba(0, 0, 0, 0.06);
+
+  /* Shadows - Very subtle */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08);
+  --shadow-glow: 0 0 15px rgba(59, 59, 59, 0.15);
+
+  /* Chart */
+  --chart-grid: #e5e5e5;
+  --chart-crosshair: #a3a3a3;
+  --chart-line: #3b3b3b;
+
+  /* Dividers */
+  --divider: #e5e5e5;
+  --divider-subtle: #f5f5f5;
+
+  /* Scrollbar - Minimal */
+  --scrollbar-track: #f5f5f5;
+  --scrollbar-thumb: #d4d4d4;
+  --scrollbar-thumb-hover: #a3a3a3;
+
+  /* Special Components */
+  --input-bg: #ffffff;
+
+  /* Override neon colors for Manus theme */
+  --color-primary: #3b3b3b;
+}

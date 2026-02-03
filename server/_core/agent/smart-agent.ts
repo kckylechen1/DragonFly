@@ -6,9 +6,11 @@
  * - Session 管理
  * - Memory 系统
  * - Skill 系统
+ * - 意图识别与响应控制
+ * - Provider 自动选择
  */
 
-import { AgentOrchestrator } from "./orchestrator";
+import { AgentOrchestrator, buildOrchestratorPrompt } from "./orchestrator";
 import { AnalysisAgent } from "./agents/analysis-agent";
 import {
   getSessionStore,
@@ -19,7 +21,16 @@ import {
 import { getMemoryStore } from "../memory";
 import { getSkillRegistry, type Skill } from "../skills";
 import type { StreamEvent, AgentMessage } from "./types";
-import { ENV } from "../env";
+
+// 新增：意图识别和 Provider 系统
+import {
+  checkResponseLimits,
+  detectIntent,
+  type IntentType,
+  INTENT_CONFIGS,
+} from "./intent";
+import { buildPromptForIntent } from "./system-prompt";
+import { getBestProvider } from "./providers";
 
 export interface SmartAgentConfig {
   sessionId?: string;
@@ -30,11 +41,15 @@ export interface SmartAgentConfig {
   preloadedContext?: string;
 }
 
+export type MarketType = "A" | "US" | "HK" | "unknown";
+
 export class SmartAgent {
   private config: SmartAgentConfig;
   private session: Session;
   private orchestrator: AgentOrchestrator | null;
   private analysisAgent: AnalysisAgent | null;
+  private currentIntent: IntentType = "quick";
+  private currentMarket: MarketType = "unknown";
 
   constructor(config: SmartAgentConfig = {}) {
     this.config = {
@@ -43,10 +58,14 @@ export class SmartAgent {
       ...config,
     };
 
-    if (!ENV.grokApiKey) {
-      console.warn(
-        "[SmartAgent] Grok API key not found, falling back to GLM"
+    // 检测并记录可用的 Provider
+    const bestProvider = getBestProvider();
+    if (bestProvider) {
+      console.log(
+        `[SmartAgent] Using provider: ${bestProvider.name} (${bestProvider.provider})`
       );
+    } else {
+      console.warn("[SmartAgent] No LLM provider configured!");
     }
 
     const sessionStore = getSessionStore();
@@ -68,21 +87,100 @@ export class SmartAgent {
   }
 
   /**
+   * 检测市场类型
+   */
+  private detectMarketType(message: string, stockCode?: string): MarketType {
+    // 1. 优先检测明确的股票代码
+    if (stockCode) {
+      if (/^[036]\d{5}$/.test(stockCode)) return "A";
+      if (/^\d{4,5}\.HK$/i.test(stockCode)) return "HK";
+      if (/^[A-Z]{1,5}$/.test(stockCode)) return "US";
+    }
+
+    // 2. 从消息中检测
+    // 美股
+    if (
+      /\b(AAPL|NVDA|TSLA|GOOGL|MSFT|AMZN|META|NFLX|AMD|INTC)\b/i.test(message)
+    )
+      return "US";
+    if (/纳斯达克|纳指|标普|道琼斯|美股|nasdaq|nyse/i.test(message))
+      return "US";
+
+    // 港股
+    if (/\d{4,5}\.HK/i.test(message)) return "HK";
+    if (/港股|恒生|恒指/i.test(message)) return "HK";
+
+    // A股
+    if (/\b[036]\d{5}\b/.test(message)) return "A";
+    if (/沪深|上证|深证|A股|创业板|科创板/i.test(message)) return "A";
+
+    return "unknown";
+  }
+
+  /**
+   * 获取市场类型对应的数据源标签
+   */
+  private getMarketLabel(): string {
+    switch (this.currentMarket) {
+      case "A":
+        return "A股";
+      case "US":
+        return "美股";
+      case "HK":
+        return "港股";
+      default:
+        return "";
+    }
+  }
+
+  /**
    * 同步执行
    */
   async chat(userMessage: string): Promise<{
     response: string;
     toolCalls: string[];
     iterations: number;
+    intent: IntentType;
   }> {
     const sessionStore = getSessionStore();
     const memoryStore = getMemoryStore();
     const skillRegistry = getSkillRegistry();
 
+    // 🆕 意图识别
+    this.currentIntent = detectIntent(userMessage);
+    const intentConfig = INTENT_CONFIGS[this.currentIntent];
+
+    // 🆕 市场类型检测
+    this.currentMarket = this.detectMarketType(
+      userMessage,
+      this.config.stockCode
+    );
+    if (this.currentMarket !== "unknown") {
+      console.log(`[SmartAgent] Detected market: ${this.currentMarket}`);
+    }
+    console.log(
+      `[SmartAgent] Detected intent: ${this.currentIntent} (max ${intentConfig.maxTools} tools, ${intentConfig.maxChars} chars)`
+    );
+
     sessionStore.addMessage(this.session.id, {
       role: "user",
       content: userMessage,
     });
+
+    // 🆕 Greeting 模式：直接返回，不查询数据
+    if (this.currentIntent === "greeting") {
+      const greetingResponse = this.generateGreetingResponse(userMessage);
+      sessionStore.addMessage(this.session.id, {
+        role: "assistant",
+        content: greetingResponse,
+      });
+      return {
+        response: greetingResponse,
+        toolCalls: [],
+        iterations: 0,
+        intent: this.currentIntent,
+      };
+    }
 
     const memoryContext = memoryStore.generateContextInjection(
       userMessage,
@@ -110,8 +208,12 @@ export class SmartAgent {
 
     const agent = this.orchestrator || this.analysisAgent!;
 
+    this.applyIntentPrompt();
+    this.applyIntentBudgets(intentConfig.maxTools);
+
     // 20秒超时控制，超时后降级到基础工具
-    const response = await this.runWithTimeout(agent, enhancedMessage);
+    let response = await this.runWithTimeout(agent, enhancedMessage);
+    response = this.applyResponseShaping(response, this.currentIntent);
 
     sessionStore.addMessage(this.session.id, {
       role: "assistant",
@@ -134,7 +236,26 @@ export class SmartAgent {
       response,
       toolCalls,
       iterations,
+      intent: this.currentIntent,
     };
+  }
+
+  /**
+   * 🆕 生成问候回复（不调用工具）
+   */
+  private generateGreetingResponse(userMessage: string): string {
+    const greetings = [
+      "你好！有什么股票想聊？",
+      "嗨！今天想分析什么？",
+      "你好！随时准备帮你看股票。",
+    ];
+
+    // 如果上次讨论过某只股票，可以提及
+    if (this.config.stockCode) {
+      return `你好！还想继续聊 ${this.config.stockCode} 吗？或者换一只？`;
+    }
+
+    return greetings[Math.floor(Math.random() * greetings.length)];
   }
 
   /**
@@ -145,10 +266,37 @@ export class SmartAgent {
     const memoryStore = getMemoryStore();
     const skillRegistry = getSkillRegistry();
 
+    // 🆕 意图识别
+    this.currentIntent = detectIntent(userMessage);
+    const intentConfig = INTENT_CONFIGS[this.currentIntent];
+    console.log(
+      `[SmartAgent] Detected intent: ${this.currentIntent} (max ${intentConfig.maxTools} tools, ${intentConfig.maxChars} chars)`
+    );
+
+    // 🆕 市场类型检测
+    this.currentMarket = this.detectMarketType(
+      userMessage,
+      this.config.stockCode
+    );
+    if (this.currentMarket !== "unknown") {
+      console.log(`[SmartAgent] Detected market: ${this.currentMarket}`);
+    }
+
     sessionStore.addMessage(this.session.id, {
       role: "user",
       content: userMessage,
     });
+
+    if (this.currentIntent === "greeting") {
+      const greetingResponse = this.generateGreetingResponse(userMessage);
+      sessionStore.addMessage(this.session.id, {
+        role: "assistant",
+        content: greetingResponse,
+      });
+      yield { type: "content", data: greetingResponse };
+      yield { type: "done", data: { iterations: 0 } };
+      return;
+    }
 
     const memoryContext = memoryStore.generateContextInjection(
       userMessage,
@@ -190,6 +338,8 @@ export class SmartAgent {
     );
 
     const agent = this.orchestrator || this.analysisAgent!;
+    this.applyIntentPrompt();
+    this.applyIntentBudgets(intentConfig.maxTools);
     let fullResponse = "";
     let runStatus: TodoRunStatus = "completed";
 
@@ -240,12 +390,17 @@ export class SmartAgent {
       }
 
       if (event.type === "content") {
-        fullResponse = event.data;
+        fullResponse = this.applyResponseShaping(
+          event.data,
+          this.currentIntent
+        );
         if (finalTodoId) {
           sessionStore.updateTodo(this.session.id, todoRun.id, finalTodoId, {
             status: "in_progress",
           });
         }
+        yield { ...event, data: fullResponse };
+        continue;
       }
 
       if (event.type === "error") {
@@ -387,6 +542,58 @@ export class SmartAgent {
     return parts.join("\n\n");
   }
 
+  private applyIntentPrompt(): void {
+    const intentPrompt = buildPromptForIntent(this.currentIntent);
+
+    if (this.analysisAgent) {
+      this.analysisAgent.updateSystemPrompt(intentPrompt);
+      return;
+    }
+
+    if (this.orchestrator) {
+      this.orchestrator.updateSystemPrompt(
+        buildOrchestratorPrompt(intentPrompt)
+      );
+    }
+  }
+
+  private applyIntentBudgets(maxTools: number): void {
+    if (this.analysisAgent) {
+      this.analysisAgent.setToolBudgetLimit(maxTools);
+      return;
+    }
+
+    if (this.orchestrator) {
+      this.orchestrator.setToolBudgetLimit(maxTools);
+    }
+  }
+
+  private applyResponseShaping(content: string, intent: IntentType): string {
+    const maxChars = INTENT_CONFIGS[intent].maxChars;
+    let trimmed = content;
+
+    if (trimmed.length > maxChars) {
+      trimmed = trimmed.slice(0, maxChars - 1).trimEnd() + "…";
+    }
+
+    const toolCount =
+      this.analysisAgent?.getToolUsageCount() ??
+      this.orchestrator?.getToolUsageCount() ??
+      0;
+    const { withinLimits, issues } = checkResponseLimits({
+      intent,
+      content: trimmed,
+      hasToolCalls: toolCount > 0,
+      toolCount,
+    });
+
+    if (!withinLimits) {
+      console.warn(`[SmartAgent] Response limits: ${issues.join("; ")}`);
+    }
+
+    return trimmed;
+  }
+
   /**
    * 提取并保存记忆
    */
@@ -436,36 +643,76 @@ export class SmartAgent {
       return [{ title: "理解问题并给出回答" }];
     }
 
+    // 🆕 根据市场类型选择不同的工具集
+    const getMarketTools = (
+      market: MarketType,
+      isDetailMode: boolean
+    ): string[] => {
+      switch (market) {
+        case "US":
+          // 美股工具集
+          return isDetailMode
+            ? ["get_us_stock_quote", "get_us_kline", "get_us_market_status"]
+            : ["get_us_stock_quote", "get_us_market_status"];
+        case "HK":
+          // 港股工具集
+          return isDetailMode
+            ? ["get_hk_stock_quote", "get_hk_kline", "get_hk_market_status"]
+            : ["get_hk_stock_quote", "get_hk_market_status"];
+        case "A":
+        default:
+          // A股工具集（原有的）
+          return isDetailMode
+            ? [
+                "comprehensive_analysis",
+                "get_guba_hot_rank",
+                "get_trading_memory",
+              ]
+            : [
+                "get_stock_quote",
+                "analyze_stock_technical",
+                "get_fund_flow",
+                "get_market_status",
+              ];
+      }
+    };
+
     const toolPlan =
       matchedSkill?.tools && matchedSkill.tools.length > 0
         ? matchedSkill.tools
-        : detailMode
-          ? [
-              "comprehensive_analysis",
-              "get_guba_hot_rank",
-              "get_trading_memory",
-            ]
-          : [
-              "get_stock_quote",
-              "analyze_stock_technical",
-              "get_fund_flow",
-              "get_market_status",
-              "get_trading_memory",
-            ];
+        : getMarketTools(this.currentMarket, detailMode);
 
     const todos: Array<
       Pick<TodoItem, "title"> &
         Partial<Omit<TodoItem, "id" | "createdAt" | "updatedAt">>
-    > = toolPlan.map(toolName => ({
-      title: `计划工具: ${toolName}`,
-      toolName,
-      toolArgs:
-        toolName === "get_market_status"
-          ? {}
-          : toolName === "search_stock"
-            ? { keyword: stockCode }
-            : { code: stockCode },
-    }));
+    > = toolPlan.map(toolName => {
+      // 🆕 根据工具类型设置正确的参数名
+      let toolArgs: Record<string, any> = {};
+      if (
+        toolName === "get_market_status" ||
+        toolName === "get_us_market_status" ||
+        toolName === "get_hk_market_status"
+      ) {
+        toolArgs = {};
+      } else if (toolName === "search_stock") {
+        toolArgs = { keyword: stockCode };
+      } else if (
+        toolName.startsWith("get_us_") ||
+        toolName.startsWith("get_hk_")
+      ) {
+        // 美股/港股工具使用 symbol 参数
+        toolArgs = { symbol: stockCode };
+      } else {
+        // A股工具使用 code 参数
+        toolArgs = { code: stockCode };
+      }
+
+      return {
+        title: `计划工具: ${toolName}`,
+        toolName,
+        toolArgs,
+      };
+    });
 
     todos.push({ title: "生成结论与操作建议" });
     return todos;

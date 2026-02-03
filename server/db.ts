@@ -140,7 +140,13 @@ export async function getWatchlist() {
   if (!db) return [];
 
   const { watchlist } = await import("../drizzle/schema");
-  return await db.select().from(watchlist);
+  try {
+    return await db.select().from(watchlist);
+  } catch (error) {
+    console.warn("[Database] Failed to fetch watchlist:", error);
+    _db = null;
+    return [];
+  }
 }
 
 export async function addToWatchlist(data: {
@@ -169,7 +175,12 @@ export async function addToWatchlist(data: {
     insertData.source = data.source;
   }
 
-  await db.insert(watchlist).values(insertData);
+  try {
+    await db.insert(watchlist).values(insertData);
+  } catch (error) {
+    console.warn("[Database] Failed to add watchlist item:", error);
+    _db = null;
+  }
 }
 
 export async function removeFromWatchlist(id: number) {
@@ -178,7 +189,12 @@ export async function removeFromWatchlist(id: number) {
 
   const { watchlist } = await import("../drizzle/schema");
   const { eq } = await import("drizzle-orm");
-  await db.delete(watchlist).where(eq(watchlist.id, id));
+  try {
+    await db.delete(watchlist).where(eq(watchlist.id, id));
+  } catch (error) {
+    console.warn("[Database] Failed to remove watchlist item:", error);
+    _db = null;
+  }
 }
 
 export async function updateWatchlistItem(
@@ -190,7 +206,12 @@ export async function updateWatchlistItem(
 
   const { watchlist } = await import("../drizzle/schema");
   const { eq } = await import("drizzle-orm");
-  await db.update(watchlist).set(data).where(eq(watchlist.id, id));
+  try {
+    await db.update(watchlist).set(data).where(eq(watchlist.id, id));
+  } catch (error) {
+    console.warn("[Database] Failed to update watchlist item:", error);
+    _db = null;
+  }
 }
 
 // K线数据查询

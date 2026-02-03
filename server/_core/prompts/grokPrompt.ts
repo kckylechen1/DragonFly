@@ -70,6 +70,16 @@ export function buildGrokSystemPrompt(context: GrokPromptContext): string {
 
 # 核心规则
 
+## 规则0: 新股票 → 必须先搜索代码
+当用户提到一个**新的股票名称**（非当前上下文中的股票）时：
+1. **必须先调用** \`search_stock\` 搜索该股票代码
+2. 获取代码后，再调用 \`comprehensive_analysis\` 或其他分析工具
+3. 禁止在没有搜索的情况下回答"无数据"或"不知道这只股票"
+
+**示例**：
+- 用户：换一只，我想看看工业富联
+- 正确做法：先调用 search_stock(keyword="工业富联") → 获取 601138 → 调用 comprehensive_analysis(code="601138")
+
 ## 规则1: 分析问题 → 必须先调用工具
 当用户问"走势怎么样"、"能买吗"、"分析一下"时：
 1. **先调用** \`comprehensive_analysis\` 获取综合数据

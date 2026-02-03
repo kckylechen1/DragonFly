@@ -17,7 +17,7 @@ export type IntentType =
   | "STRATEGY_ADVICE" // 策略建议
   | "MARKET_ANALYSIS" // 大盘分析
 
-  // Qwen Worker 处理（数据获取）
+  // DeepSeek Worker 处理（数据获取）
   | "GET_QUOTE" // 查价格
   | "GET_NEWS" // 查新闻
   | "ADD_WATCHLIST" // 添加自选（触发数据预加载）
@@ -38,7 +38,7 @@ export interface IntentClassification {
   intent: IntentType;
   confidence: number;
   requiredTools: string[];
-  model: "grok" | "deepseek" | "qwen" | "direct";
+  model: "grok" | "deepseek" | "direct";
   matchedPattern?: string;
 }
 
@@ -116,7 +116,7 @@ const INTENT_RULES: IntentRule[] = [
     requiredTools: ["get_market_status", "get_market_fund_flow"],
   },
 
-  // === Qwen Worker 路由（简单数据获取） ===
+  // === DeepSeek Worker 路由（简单数据获取） ===
   {
     patterns: [/(现在|当前|实时).*价格/, /多少钱/, /(股价|价格)是多少/, /报价/],
     intent: "GET_QUOTE",
@@ -159,9 +159,7 @@ const INTENT_RULES: IntentRule[] = [
 /**
  * 根据意图获取对应的模型
  */
-function getModelForIntent(
-  intent: IntentType
-): "grok" | "deepseek" | "qwen" | "direct" {
+function getModelForIntent(intent: IntentType): "grok" | "deepseek" | "direct" {
   const grokIntents: IntentType[] = [
     "ANALYZE_STOCK",
     "TRADING_DECISION",
@@ -171,7 +169,7 @@ function getModelForIntent(
     "GENERAL_QA",
   ];
 
-  const qwenIntents: IntentType[] = [
+  const deepseekIntents: IntentType[] = [
     "GET_QUOTE",
     "GET_NEWS",
     "ADD_WATCHLIST",
@@ -181,7 +179,7 @@ function getModelForIntent(
   const directIntents: IntentType[] = ["SEARCH_STOCK", "GET_TIME", "GREETING"];
 
   if (grokIntents.includes(intent)) return "grok";
-  if (qwenIntents.includes(intent)) return "qwen";
+  if (deepseekIntents.includes(intent)) return "deepseek";
   if (directIntents.includes(intent)) return "direct";
 
   return "grok"; // 默认使用 Grok

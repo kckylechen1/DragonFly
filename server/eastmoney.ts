@@ -116,7 +116,7 @@ export async function searchStock(keyword: string) {
     const params = {
       input: keyword,
       type: "14", // 14表示股票
-      token: "D43BF722C8E33BDC906FB84D85E326E8",
+      token: process.env.EASTMONEY_SEARCH_TOKEN || "",
       count: 10,
     };
 
@@ -172,14 +172,11 @@ export async function getKlineData(
 
     const klt = periodMap[period];
     const beg = startDate || "20200101"; // 默认从2020年开始
-
-    // 生成回调函数名（模拟JSONP）
     const timestamp = Date.now();
-    const callback = `jQuery${Math.random().toString().replace(".", "")}${timestamp}`;
 
+    // 使用纯 JSON 格式请求（不使用 JSONP callback）
     const url = `https://push2his.eastmoney.com/api/qt/stock/kline/get`;
     const params = {
-      cb: callback,
       secid: eastmoneyCode,
       ut: "fa5fd1943c7b386f172d6893dbfba10b",
       fields1: "f1,f2,f3,f4,f5,f6",
@@ -195,26 +192,34 @@ export async function getKlineData(
     const response = await axios.get(url, {
       params,
       headers: HEADERS,
+      timeout: 10000,
     });
 
-    // 处理JSONP响应
-    let jsonpData = response.data;
-    if (typeof jsonpData === "string") {
-      // 验证JSONP格式，防止XSS攻击
-      if (!jsonpData.match(/^jQuery\d+_\d+\(/)) {
-        throw new Error("Invalid JSONP format");
+    let jsonData = response.data;
+
+    // 处理可能的 JSONP 响应（兼容旧格式）
+    if (typeof jsonData === "string") {
+      // 如果是 JSONP 格式，提取 JSON
+      const match = jsonData.match(/^[^(]*\(([^]*)\);?$/);
+      if (match) {
+        jsonData = JSON.parse(match[1]);
+      } else {
+        // 尝试直接解析为 JSON
+        try {
+          jsonData = JSON.parse(jsonData);
+        } catch {
+          throw new Error("无法解析响应数据");
+        }
       }
-      // 移除JSONP包装
-      jsonpData = jsonpData.replace(/^[^(]+\(/, "").replace(/\);?$/, "");
-      jsonpData = JSON.parse(jsonpData);
     }
 
-    if (!jsonpData || !jsonpData.data || !jsonpData.data.klines) {
-      throw new Error("K线数据为空");
+    if (!jsonData || !jsonData.data || !jsonData.data.klines) {
+      console.warn(`[Eastmoney] K线数据为空: ${code}, period=${period}`);
+      return [];
     }
 
     // 解析K线数据
-    const klines = jsonpData.data.klines.map((line: string) => {
+    const klines = jsonData.data.klines.map((line: string) => {
       const parts = line.split(",");
       return {
         date: parts[0], // 日期
@@ -231,13 +236,14 @@ export async function getKlineData(
       };
     });
 
+    console.log(`[Eastmoney] K线成功: ${code}, ${klines.length} bars`);
     return klines;
   } catch (error: any) {
     console.error(
       `[Eastmoney] Failed to get kline data for ${code}:`,
       error.message
     );
-    throw error;
+    return []; // 返回空数组而不是抛出异常
   }
 }
 

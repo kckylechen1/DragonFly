@@ -8,8 +8,8 @@
  * 4. 错误恢复 + 指数退避重试
  */
 
-import { ENV } from "../env";
 import pLimit from "p-limit";
+import { getBestProvider } from "./providers";
 import type {
   AgentConfig,
   AgentState,
@@ -18,6 +18,7 @@ import type {
   ToolCall,
   ToolDefinition,
   ToolExecutor,
+  ToolExecutionOutput,
   LLMResponse,
   StreamEvent,
 } from "./types";
@@ -28,7 +29,7 @@ const toolConcurrencyLimit = pLimit(6);
 type ToolExecutionResult = {
   ok: boolean;
   toolName: string;
-  result: string;
+  output: ToolExecutionOutput;
   error?: string;
   skipped?: boolean;
 };
@@ -261,7 +262,10 @@ export abstract class BaseAgent {
                 name: exec.toolName,
                 ok: exec.ok,
                 skipped: exec.skipped,
-                result: this.truncate(exec.result, 200),
+                result: exec.output.content,
+                summary: exec.output.summary,
+                rawRef: exec.output.rawRef,
+                meta: exec.output.meta,
                 error: exec.error,
               },
             };
@@ -295,29 +299,58 @@ export abstract class BaseAgent {
   }
 
   /**
-   * 调用 LLM
+   * 调用 LLM（支持 OpenAI 和 Anthropic 格式）
    */
   protected async callLLM(): Promise<LLMResponse> {
-    const preferGrok = Boolean(ENV.grokApiKey);
-    const defaultConfig = {
-      url: preferGrok
-        ? ENV.grokApiUrl
-        : ENV.glmApiUrl || "https://open.bigmodel.cn/api/paas/v4",
-      key: preferGrok ? ENV.grokApiKey : ENV.glmApiKey,
-      model:
-        (preferGrok ? ENV.grokModel : ENV.glmModel) ||
-        (preferGrok ? "grok-4-1-fast-reasoning" : "glm-4.7"),
-    };
+    const configuredLlm = this.config.llm;
+    const providerConfig = configuredLlm ? null : getBestProvider();
 
-    const llmConfig = this.config.llm ?? defaultConfig;
-    const apiUrl = llmConfig.url;
-    const apiKey = llmConfig.key;
-    const model = this.config.model || llmConfig.model;
+    if (!configuredLlm && !providerConfig) {
+      throw new Error("LLM provider not configured.");
+    }
+
+    const apiUrl = configuredLlm?.url ?? providerConfig!.apiUrl;
+    const apiKey = configuredLlm?.key ?? providerConfig!.apiKey;
+    const model =
+      this.config.model ?? configuredLlm?.model ?? providerConfig!.model;
+    const provider = configuredLlm?.provider ?? providerConfig!.provider;
 
     if (!apiKey) {
       throw new Error("LLM API key not configured.");
     }
 
+    // 检查工具预算是否已耗尽，如果是则禁用工具调用
+    const budgetExhausted = this.isToolBudgetExhausted();
+    if (budgetExhausted) {
+      this.log("⚠️ 工具预算已耗尽，禁用工具调用，强制生成最终回复");
+    }
+
+    if (provider === "anthropic") {
+      return this.callAnthropicLLM(apiUrl, apiKey, model, budgetExhausted);
+    }
+
+    return this.callOpenAILLM(apiUrl, apiKey, model, budgetExhausted);
+  }
+
+  /**
+   * 检查工具预算是否已耗尽
+   */
+  private isToolBudgetExhausted(): boolean {
+    const complexity = this.state.queryComplexity || "simple";
+    const budget = this.config.toolBudget!;
+    const maxTools = budget[complexity] ?? budget.complex;
+    return this.state.toolsUsed >= maxTools;
+  }
+
+  /**
+   * OpenAI 兼容格式调用
+   */
+  private async callOpenAILLM(
+    apiUrl: string,
+    apiKey: string,
+    model: string,
+    disableTools: boolean = false
+  ): Promise<LLMResponse> {
     const normalizedUrl = apiUrl.replace(/\/$/, "");
     const endpoint = normalizedUrl.endsWith("/chat/completions")
       ? normalizedUrl
@@ -330,7 +363,8 @@ export abstract class BaseAgent {
       temperature: this.config.temperature,
     };
 
-    if (this.config.tools.length > 0) {
+    // 只有在未禁用且有工具时才添加工具
+    if (!disableTools && this.config.tools.length > 0) {
       payload.tools = this.config.tools;
       payload.tool_choice = "auto";
     }
@@ -358,6 +392,31 @@ export abstract class BaseAgent {
       finish_reason: data.choices?.[0]?.finish_reason,
       usage: data.usage,
     };
+  }
+
+  /**
+   * Anthropic Claude 原生格式调用
+   */
+  private async callAnthropicLLM(
+    apiUrl: string,
+    apiKey: string,
+    model: string,
+    disableTools: boolean = false
+  ): Promise<LLMResponse> {
+    // 动态导入 Anthropic 适配器
+    const { AnthropicClient } = await import("./anthropic-adapter");
+
+    const client = new AnthropicClient({
+      apiKey,
+      baseUrl: apiUrl,
+      model,
+      maxTokens: this.config.maxTokens,
+      temperature: this.config.temperature,
+    });
+
+    // 如果禁用工具，传入空数组
+    const tools = disableTools ? [] : this.config.tools;
+    return client.chat(this.state.messages, tools);
   }
 
   /**
@@ -393,13 +452,17 @@ export abstract class BaseAgent {
     const remainingTools = maxTools - this.state.toolsUsed;
 
     if (remainingTools <= 0) {
-      this.log(`⚠️ 工具预算已耗尽 (最大 ${maxTools} 个工具)`);
+      this.log(
+        `📊 已使用 ${this.state.toolsUsed}/${maxTools} 个工具，开始生成最终回答...`
+      );
       for (const tc of toolCalls) {
         results.set(tc.id, {
           ok: false,
           skipped: true,
           toolName: tc.function.name,
-          result: `已达到工具使用上限 (${maxTools} 个)，本轮跳过工具 ${tc.function.name}。请简化问题或分步查询。`,
+          output: this.buildToolOutput(
+            `基于已获取的 ${this.state.toolsUsed} 个工具数据生成回答`
+          ),
           error: "budget_exceeded",
         });
       }
@@ -410,15 +473,18 @@ export abstract class BaseAgent {
     const allowedToolCalls = toolCalls.slice(0, remainingTools);
 
     if (allowedToolCalls.length < toolCalls.length) {
+      const skippedCount = toolCalls.length - allowedToolCalls.length;
       this.log(
-        `⚠️ 工具调用被截断: ${toolCalls.length} → ${allowedToolCalls.length} (预算限制)`
+        `📋 优先执行 ${allowedToolCalls.length} 个工具 (${skippedCount} 个延后)`
       );
       for (const tc of toolCalls.slice(allowedToolCalls.length)) {
         results.set(tc.id, {
           ok: false,
           skipped: true,
           toolName: tc.function.name,
-          result: `工具调用数量已限制为 ${allowedToolCalls.length} 个 (预算: ${maxTools})，本轮跳过工具 ${tc.function.name}。`,
+          output: this.buildToolOutput(
+            `优先执行核心工具，${tc.function.name} 暂不调用`
+          ),
           error: "budget_limited",
         });
       }
@@ -468,14 +534,15 @@ export abstract class BaseAgent {
     maxRetries = 3
   ): Promise<ToolExecutionResult> {
     let lastError: Error | null = null;
+    const startTime = Date.now();
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        const result = await this.executeSingleTool(toolCall);
+        const output = await this.executeSingleTool(toolCall);
         return {
           ok: true,
           toolName: toolCall.function.name,
-          result,
+          output,
         };
       } catch (error: any) {
         lastError = error;
@@ -492,7 +559,14 @@ export abstract class BaseAgent {
     return {
       ok: false,
       toolName: toolCall.function.name,
-      result: `工具 ${toolCall.function.name} 执行失败（重试 ${maxRetries} 次）: ${lastError?.message}`,
+      output: this.buildToolOutput(
+        `工具 ${toolCall.function.name} 执行失败（重试 ${maxRetries} 次）: ${lastError?.message}`,
+        undefined,
+        {
+          asOf: new Date().toISOString(),
+          latencyMs: Date.now() - startTime,
+        }
+      ),
       error: lastError?.message,
     };
   }
@@ -500,7 +574,9 @@ export abstract class BaseAgent {
   /**
    * 执行单个工具
    */
-  private async executeSingleTool(toolCall: ToolCall): Promise<string> {
+  private async executeSingleTool(
+    toolCall: ToolCall
+  ): Promise<ToolExecutionOutput> {
     const { name, arguments: argsStr } = toolCall.function;
     const executor = this.toolExecutors.get(name);
 
@@ -515,15 +591,23 @@ export abstract class BaseAgent {
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : String(e);
       // 返回错误信息让模型下一轮修正
-      return `工具参数 JSON 解析失败: ${errorMsg}. 原始参数: ${argsStr}`;
+      return this.buildToolOutput(
+        `工具参数 JSON 解析失败: ${errorMsg}. 原始参数: ${argsStr}`,
+        undefined,
+        {
+          asOf: new Date().toISOString(),
+        }
+      );
     }
 
     this.log(`   执行: ${name}(${JSON.stringify(args).slice(0, 100)})`);
 
-    const result = await executor(args);
-    this.state.toolResults.set(`${name}:${argsStr}`, result);
+    const output = await executor(args);
+    const normalizedOutput =
+      typeof output === "string" ? this.buildToolOutput(output) : output;
+    this.state.toolResults.set(`${name}:${argsStr}`, normalizedOutput.content);
 
-    return result;
+    return normalizedOutput;
   }
 
   /**
@@ -534,7 +618,10 @@ export abstract class BaseAgent {
     results: Map<string, ToolExecutionResult>
   ): void {
     for (const tc of response.tool_calls!) {
-      const result = results.get(tc.id)?.result || "执行失败";
+      const result =
+        results.get(tc.id)?.output.content ||
+        results.get(tc.id)?.error ||
+        "执行失败";
       this.state.messages.push({
         role: "tool",
         tool_call_id: tc.id,
@@ -548,6 +635,36 @@ export abstract class BaseAgent {
    */
   reset(): void {
     this.state = this.createInitialState();
+  }
+
+  /**
+   * 设置工具预算上限
+   */
+  setToolBudgetLimit(maxTools: number): void {
+    if (!this.config.toolBudget) {
+      return;
+    }
+
+    const safeLimit = Math.max(0, maxTools);
+    const current = this.config.toolBudget;
+    current.simple = Math.min(current.simple, safeLimit);
+    current.medium = Math.min(current.medium ?? current.simple, safeLimit);
+    current.complex = Math.min(current.complex, safeLimit);
+  }
+
+  /**
+   * 更新 system prompt
+   */
+  updateSystemPrompt(newPrompt: string): void {
+    this.config.systemPrompt = newPrompt;
+    if (
+      this.state.messages.length > 0 &&
+      this.state.messages[0].role === "system"
+    ) {
+      this.state.messages[0].content = newPrompt;
+    } else if (newPrompt) {
+      this.state.messages.unshift({ role: "system", content: newPrompt });
+    }
   }
 
   /**
@@ -577,6 +694,18 @@ export abstract class BaseAgent {
     this.state.thinking.push(message);
   }
 
+  private buildToolOutput(
+    content: string,
+    summary?: string,
+    meta?: ToolExecutionOutput["meta"]
+  ): ToolExecutionOutput {
+    return {
+      content,
+      summary: summary ?? this.truncate(content, 120),
+      meta,
+    };
+  }
+
   /**
    * 截断字符串
    */
@@ -604,5 +733,12 @@ export abstract class BaseAgent {
    */
   getThinking(): string[] {
     return [...this.state.thinking];
+  }
+
+  /**
+   * 获取工具调用数量
+   */
+  getToolUsageCount(): number {
+    return this.state.toolsUsed;
   }
 }

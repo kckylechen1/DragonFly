@@ -7,7 +7,8 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { createSmartAgent } from "./agent";
+import { runAgentStream } from "./agent/runner";
+import { writeStreamEvent } from "./agent/stream-handler";
 import type { StreamEvent } from "@shared/stream";
 import type { Response } from "express";
 
@@ -91,12 +92,37 @@ async function startServer() {
     const useThinking = useThinkingValue === "true";
 
     const sendEvent = (event: StreamEvent) => {
-      res.write(`data: ${JSON.stringify(event)}\n\n`);
+      writeStreamEvent(res, event);
+    };
+
+    const sendErrorAndClose = (errorMessage: string) => {
+      const runId = `run_${Date.now()}`;
+      const timestamp = Date.now();
+      sendEvent({
+        eventVersion: 1,
+        id: `${runId}:1`,
+        runId,
+        type: "error",
+        timestamp,
+        data: { message: errorMessage },
+      });
+      sendEvent({
+        eventVersion: 1,
+        id: `${runId}:2`,
+        runId,
+        type: "run_end",
+        timestamp: timestamp + 1,
+        data: {
+          sessionId: sessionId ?? "unknown",
+          status: "error",
+          error: errorMessage,
+        },
+      });
+      res.end();
     };
 
     if (!message || typeof message !== "string") {
-      sendEvent({ type: "error", data: "Missing message parameter" });
-      res.end();
+      sendErrorAndClose("Missing message parameter");
       return;
     }
 
@@ -105,105 +131,37 @@ async function startServer() {
     }, 15000);
 
     let closed = false;
+    const abortController = new AbortController();
     req.on("close", () => {
       closed = true;
+      abortController.abort();
     });
-
-    const agent = createSmartAgent({
-      sessionId,
-      stockCode,
-      thinkHard: useThinking,
-    });
-
-    const normalizeToolArgs = (args: unknown) => {
-      if (!args) return undefined;
-      if (typeof args === "object") return args as Record<string, unknown>;
-      if (typeof args !== "string") return undefined;
-      try {
-        return JSON.parse(args) as Record<string, unknown>;
-      } catch {
-        return undefined;
-      }
-    };
 
     try {
-      for await (const event of agent.stream(message)) {
+      const stream = runAgentStream({
+        message,
+        sessionId,
+        stockCode,
+        thinkHard: useThinking,
+        signal: abortController.signal,
+      });
+
+      for await (const event of stream) {
         if (closed) break;
-
-        if (
-          event.type === "thinking" ||
-          event.type === "content" ||
-          event.type === "error"
-        ) {
-          sendEvent({ type: event.type, data: event.data as string });
-          continue;
-        }
-
-        if (event.type === "tool_call") {
-          const toolCallId = event.data?.toolCallId ?? event.data?.id;
-          const name = event.data?.name;
-          if (toolCallId && name) {
-            sendEvent({
-              type: "tool_call",
-              data: {
-                toolCallId,
-                name,
-                args: normalizeToolArgs(event.data?.args),
-              },
-            });
-          }
-          continue;
-        }
-
-        if (event.type === "tool_result") {
-          const toolCallId = event.data?.toolCallId ?? event.data?.id;
-          const name = event.data?.name;
-          if (toolCallId && name) {
-            sendEvent({
-              type: "tool_result",
-              data: {
-                toolCallId,
-                name,
-                ok: Boolean(event.data?.ok),
-                result:
-                  typeof event.data?.result === "string"
-                    ? event.data.result
-                    : undefined,
-                error:
-                  typeof event.data?.error === "string"
-                    ? event.data.error
-                    : undefined,
-                skipped: Boolean(event.data?.skipped),
-              },
-            });
-          }
-          continue;
-        }
-      }
-
-      if (!closed) {
-        sendEvent({
-          type: "done",
-          data: { sessionId: agent.getSessionId() },
-        });
+        sendEvent(event);
       }
     } catch (error) {
-      if (!closed) {
-        sendEvent({
-          type: "error",
-          data: error instanceof Error ? error.message : "Stream failed",
-        });
-      }
+      sendErrorAndClose(
+        error instanceof Error ? error.message : "Unknown stream error"
+      );
     } finally {
       clearInterval(keepAlive);
-      agent.cleanup();
       res.end();
     }
   });
 
   // 流式 AI 聊天端点 - 使用 SmartAgent 新架构
   app.post("/api/ai/stream", async (req, res) => {
-    const { hybridStreamChat } = await import("./smartStreamChat");
     const { getSessionStore } = await import("./session");
 
     // 设置 SSE 头
@@ -217,31 +175,74 @@ async function startServer() {
       messages,
       stockCode,
       stockContext,
-      useSmartAgent = true,
       sessionId,
       thinkHard,
     } = req.body;
+
+    const sendEvent = (event: StreamEvent) => {
+      writeStreamEvent(res, event);
+    };
+
+    const sendErrorAndClose = (errorMessage: string, sessionIdValue: string) => {
+      const runId = `run_${Date.now()}`;
+      const timestamp = Date.now();
+      sendEvent({
+        eventVersion: 1,
+        id: `${runId}:1`,
+        runId,
+        type: "error",
+        timestamp,
+        data: { message: errorMessage },
+      });
+      sendEvent({
+        eventVersion: 1,
+        id: `${runId}:2`,
+        runId,
+        type: "run_end",
+        timestamp: timestamp + 1,
+        data: {
+          sessionId: sessionIdValue,
+          status: "error",
+          error: errorMessage,
+        },
+      });
+      res.end();
+    };
 
     try {
       const sessionStore = getSessionStore();
       const session = sessionStore.getOrCreateSession(sessionId, stockCode);
       res.setHeader("X-Session-Id", session.id);
 
-      // 使用 hybridStreamChat，默认使用新架构
-      for await (const chunk of hybridStreamChat({
-        messages,
+      if (Array.isArray(messages) && messages.length > 0) {
+        sessionStore.setMessages(session.id, messages);
+      }
+
+      const userMessages = Array.isArray(messages)
+        ? messages.filter((m: { role: string }) => m.role === "user")
+        : [];
+      const lastUserMessage =
+        userMessages[userMessages.length - 1]?.content || "";
+
+      if (!lastUserMessage) {
+        sendErrorAndClose("Missing user message", session.id);
+        return;
+      }
+
+      const stream = runAgentStream({
+        message: lastUserMessage,
+        sessionId: session.id,
         stockCode,
         stockContext,
-        useSmartAgent,
-        sessionId: session.id,
         thinkHard,
-      })) {
-        res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+      });
+
+      for await (const event of stream) {
+        sendEvent(event);
       }
-      res.write(`data: [DONE]\n\n`);
     } catch (error) {
       console.error("Stream error:", error);
-      res.write(`data: ${JSON.stringify({ error: "Stream failed" })}\n\n`);
+      sendErrorAndClose("Stream failed", sessionId ?? "unknown");
     }
 
     res.end();

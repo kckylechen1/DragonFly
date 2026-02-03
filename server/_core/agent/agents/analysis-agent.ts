@@ -9,7 +9,8 @@
  */
 
 import { BaseAgent } from "../base-agent";
-import { executeStockTool, stockTools } from "../../stockTools";
+import { createStockToolExecutor } from "../tool-executor";
+import { stockTools } from "../../stockTools";
 import type { AgentConfig, ToolDefinition } from "../types";
 import {
   getPromptByStyle,
@@ -27,7 +28,7 @@ const DATA_ENFORCEMENT_PREFIX = `
 今日日期：${new Date().toISOString().split("T")[0]}
 `;
 
-const ANALYSIS_SYSTEM_PROMPT = `你是一个专业的A股技术分析助手，擅长用结构化、客观的方式输出个股技术走势分析。
+const ANALYSIS_SYSTEM_PROMPT = `你是一个专业的股票技术分析助手，支持 A股、美股、港股，擅长用结构化、客观的方式输出个股技术走势分析。
 
 ## 分析框架（综合分析时）
 
@@ -186,6 +187,7 @@ const ANALYSIS_SYSTEM_PROMPT_DETAILED = `你是一位资深 A 股投资顾问，
 
 const ANALYSIS_TOOLS: ToolDefinition[] = stockTools.filter(t =>
   [
+    // A股工具
     "get_stock_quote",
     "get_kline_data",
     "get_fund_flow",
@@ -201,9 +203,18 @@ const ANALYSIS_TOOLS: ToolDefinition[] = stockTools.filter(t =>
     "get_longhu_bang",
     "get_concept_board",
     "get_industry_board",
-
     "comprehensive_analysis",
     "get_trading_memory",
+
+    // 美股工具 (Yahoo Finance)
+    "get_us_stock_quote",
+    "get_us_kline",
+    "get_us_market_status",
+
+    // 港股工具 (Yahoo Finance)
+    "get_hk_stock_quote",
+    "get_hk_kline",
+    "get_hk_market_status",
   ].includes(t.function.name)
 ) as ToolDefinition[];
 
@@ -237,9 +248,21 @@ export class AnalysisAgent extends BaseAgent {
     const toolNames = ANALYSIS_TOOLS.map(t => t.function.name);
 
     for (const name of toolNames) {
-      this.registerTool(name, async args => {
-        return executeStockTool(name, args);
-      });
+      this.registerTool(name, createStockToolExecutor(name));
+    }
+  }
+
+  /**
+   * 🆕 动态更新 System Prompt（用于意图感知）
+   */
+  updateSystemPrompt(newPrompt: string): void {
+    this.config.systemPrompt = newPrompt;
+    // 重置消息历史，使用新的 prompt
+    if (
+      this.state.messages.length > 0 &&
+      this.state.messages[0].role === "system"
+    ) {
+      this.state.messages[0].content = newPrompt;
     }
   }
 }

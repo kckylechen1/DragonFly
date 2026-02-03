@@ -19,6 +19,7 @@ import type {
   TaskResult,
   StreamEvent,
   ToolDefinition,
+  ToolExecutionOutput,
 } from "./types";
 
 export interface OrchestratorConfig {
@@ -116,6 +117,14 @@ const ORCHESTRATOR_SYSTEM_PROMPT = `你是一个智能任务协调器，负责�
 → 简单问题，派发单个 analysis 任务即可
 `;
 
+export function buildOrchestratorPrompt(intentPrompt?: string): string {
+  if (!intentPrompt) {
+    return ORCHESTRATOR_SYSTEM_PROMPT;
+  }
+
+  return `${intentPrompt}\n\n---\n\n${ORCHESTRATOR_SYSTEM_PROMPT}`;
+}
+
 const stripChatCompletions = (endpoint: string) =>
   endpoint.replace(/\/chat\/completions$/, "");
 
@@ -159,6 +168,7 @@ export class AgentOrchestrator extends BaseAgent {
       url: stripChatCompletions(modelConfig.endpoint),
       key: modelConfig.apiKey,
       model: modelConfig.model,
+      provider: "openai" as const,
     };
 
     console.log(
@@ -222,9 +232,13 @@ export class AgentOrchestrator extends BaseAgent {
       this.subTaskResults.set(task.id, result);
 
       if (result.success) {
-        return `【子任务完成: ${args.description}】\n\n${result.result}`;
+        return this.buildToolOutput(
+          `【子任务完成: ${args.description}】\n\n${result.result}`
+        );
       } else {
-        return `【子任务失败: ${args.description}】\n错误: ${result.error}`;
+        return this.buildToolOutput(
+          `【子任务失败: ${args.description}】\n错误: ${result.error}`
+        );
       }
     });
 
@@ -238,7 +252,9 @@ export class AgentOrchestrator extends BaseAgent {
       }));
 
       if (tasks.length > this.orchestratorConfig.maxSubTasks) {
-        return `任务数量超过限制 (最多 ${this.orchestratorConfig.maxSubTasks} 个)`;
+        return this.buildToolOutput(
+          `任务数量超过限制 (最多 ${this.orchestratorConfig.maxSubTasks} 个)`
+        );
       }
 
       const results = await this.taskRunner.runParallel(tasks);
@@ -256,8 +272,17 @@ export class AgentOrchestrator extends BaseAgent {
         }
       });
 
-      return `【并行任务完成: ${results.filter(r => r.success).length}/${results.length} 成功】\n\n${output.join("\n\n---\n\n")}`;
+      return this.buildToolOutput(
+        `【并行任务完成: ${results.filter(r => r.success).length}/${results.length} 成功】\n\n${output.join("\n\n---\n\n")}`
+      );
     });
+  }
+
+  private buildToolOutput(content: string): ToolExecutionOutput {
+    return {
+      content,
+      summary: content.length > 160 ? `${content.slice(0, 160)}...` : content,
+    };
   }
 
   /**

@@ -8,6 +8,7 @@ import { Tool } from "./llm";
 import * as eastmoney from "../eastmoney";
 import * as fundflow from "../fundflow";
 import * as akshare from "../akshare";
+import * as yahoofinance from "../yahoofinance";
 import { formatMoney, formatPercent, formatDate } from "./formatUtils";
 import { analyzeStock, formatAnalysisForAI } from "./technicalAnalysis";
 import { analyzeMinutePatterns, formatMinuteAnalysis } from "./minutePatterns";
@@ -347,6 +348,112 @@ export const stockTools: Tool[] = [
       },
     },
   },
+  // ==================== 美股/港股工具 ====================
+  {
+    type: "function",
+    function: {
+      name: "get_us_stock_quote",
+      description:
+        "获取美股实时行情数据，包括当前价格、涨跌幅、成交量等。支持纳斯达克和NYSE股票。",
+      parameters: {
+        type: "object",
+        properties: {
+          symbol: {
+            type: "string",
+            description:
+              "美股代码，如 AAPL（苹果）、NVDA（英伟达）、TSLA（特斯拉）、MSFT（微软）",
+          },
+        },
+        required: ["symbol"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_us_kline",
+      description: "获取美股K线历史数据，用于技术分析。",
+      parameters: {
+        type: "object",
+        properties: {
+          symbol: {
+            type: "string",
+            description: "美股代码，如 AAPL、NVDA",
+          },
+          period: {
+            type: "string",
+            enum: ["1mo", "3mo", "6mo", "1y"],
+            description: "K线周期，默认1个月",
+          },
+        },
+        required: ["symbol"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_us_market_status",
+      description:
+        "获取美股大盘状态，包括纳斯达克、标普500、道琼斯的实时行情。",
+      parameters: {
+        type: "object",
+        properties: {},
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_hk_stock_quote",
+      description:
+        "获取港股实时行情数据。支持港股代码如 0700.HK（腾讯）、9988.HK（阿里巴巴）。",
+      parameters: {
+        type: "object",
+        properties: {
+          symbol: {
+            type: "string",
+            description: "港股代码，如 0700.HK、9988.HK、3690.HK",
+          },
+        },
+        required: ["symbol"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_hk_kline",
+      description: "获取港股K线历史数据。",
+      parameters: {
+        type: "object",
+        properties: {
+          symbol: {
+            type: "string",
+            description: "港股代码，如 0700.HK",
+          },
+          period: {
+            type: "string",
+            enum: ["1mo", "3mo", "6mo", "1y"],
+            description: "K线周期，默认1个月",
+          },
+        },
+        required: ["symbol"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_hk_market_status",
+      description: "获取港股大盘状态，包括恒生指数的实时行情。",
+      parameters: {
+        type: "object",
+        properties: {},
+      },
+    },
+  },
+
   // ==================== AKShare 新增工具 ====================
   {
     type: "function",
@@ -1133,6 +1240,83 @@ ${techSection}${fundSection}${marketSection}${conclusionSection}`;
         }
       }
 
+      // ==================== 美股/港股工具执行 ====================
+      case "get_us_stock_quote": {
+        const quote = await yahoofinance.getUSStockQuote(args.symbol);
+        if (!quote) {
+          return `无法获取美股 ${args.symbol} 的行情数据。请检查代码是否正确（如 AAPL、NVDA、TSLA）。`;
+        }
+        return formatYahooQuoteData(quote);
+      }
+
+      case "get_us_kline": {
+        const period = args.period || "1mo";
+        const klines = await yahoofinance.getKlineData(args.symbol, period);
+        if (!klines || klines.length === 0) {
+          return `无法获取美股 ${args.symbol} 的K线数据`;
+        }
+        return formatYahooKlineData(args.symbol, klines, period);
+      }
+
+      case "get_us_market_status": {
+        const status = await yahoofinance.getUSMarketStatus();
+        if (!status.nasdaq && !status.sp500 && !status.dow) {
+          return `无法获取美股大盘数据`;
+        }
+
+        const now = new Date();
+        const etTime = new Date(
+          now.toLocaleString("en-US", { timeZone: "America/New_York" })
+        );
+        const dateStr = `${etTime.getFullYear()}年${etTime.getMonth() + 1}月${etTime.getDate()}日`;
+        const marketStatus = status.isOpen ? "🟢 交易中" : "🔴 休市";
+
+        return `【美股大盘状态】（${dateStr} ET）
+
+${marketStatus}
+
+📈 纳斯达克指数: ${status.nasdaq?.price?.toFixed(2) ?? "--"} (${(status.nasdaq?.changePercent ?? 0) >= 0 ? "+" : ""}${status.nasdaq?.changePercent?.toFixed(2) ?? "--"}%)
+📈 标普500指数: ${status.sp500?.price?.toFixed(2) ?? "--"} (${(status.sp500?.changePercent ?? 0) >= 0 ? "+" : ""}${status.sp500?.changePercent?.toFixed(2) ?? "--"}%)
+📈 道琼斯指数: ${status.dow?.price?.toFixed(2) ?? "--"} (${(status.dow?.changePercent ?? 0) >= 0 ? "+" : ""}${status.dow?.changePercent?.toFixed(2) ?? "--"}%)`;
+      }
+
+      case "get_hk_stock_quote": {
+        const quote = await yahoofinance.getHKStockQuote(args.symbol);
+        if (!quote) {
+          return `无法获取港股 ${args.symbol} 的行情数据。请检查代码格式（如 0700.HK、9988.HK）。`;
+        }
+        return formatYahooQuoteData(quote);
+      }
+
+      case "get_hk_kline": {
+        const period = args.period || "1mo";
+        const klines = await yahoofinance.getKlineData(args.symbol, period);
+        if (!klines || klines.length === 0) {
+          return `无法获取港股 ${args.symbol} 的K线数据`;
+        }
+        return formatYahooKlineData(args.symbol, klines, period);
+      }
+
+      case "get_hk_market_status": {
+        const status = await yahoofinance.getHKMarketStatus();
+        if (!status.hangSeng) {
+          return `无法获取港股大盘数据`;
+        }
+
+        const now = new Date();
+        const hkTime = new Date(
+          now.toLocaleString("en-US", { timeZone: "Asia/Hong_Kong" })
+        );
+        const dateStr = `${hkTime.getFullYear()}年${hkTime.getMonth() + 1}月${hkTime.getDate()}日`;
+        const marketStatus = status.isOpen ? "🟢 交易中" : "🔴 休市";
+
+        return `【港股大盘状态】（${dateStr} HKT）
+
+${marketStatus}
+
+📈 恒生指数: ${status.hangSeng?.price?.toFixed(2) ?? "--"} (${status.hangSeng?.change >= 0 ? "+" : ""}${status.hangSeng?.changePercent?.toFixed(2) ?? "--"}%)`;
+      }
+
       case "get_north_flow": {
         return `⚠️ 北向资金数据目前不可用。北向资金API已停止服务，无法获取相关数据。`;
       }
@@ -1474,6 +1658,78 @@ function formatLongHuBang(data: any[]): string {
   });
 
   return `【龙虎榜数据】\n\n${items.join("\n\n")}`;
+}
+
+function formatYahooQuoteData(quote: yahoofinance.YahooQuote): string {
+  const changeSign = quote.change >= 0 ? "+" : "";
+  const changePercentSign = quote.changePercent >= 0 ? "+" : "";
+
+  // 添加当前日期
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
+
+  return `【${quote.name} (${quote.symbol}) 实时行情】
+⏰ 数据时间：${dateStr}
+📊 当前价格：${quote.price.toFixed(2)} ${quote.currency}
+${quote.changePercent >= 0 ? "📈" : "📉"} 涨跌幅：${changePercentSign}${quote.changePercent.toFixed(2)}%
+💰 涨跌额：${changeSign}${quote.change.toFixed(2)} ${quote.currency}
+
+📅 今日交易：
+  今开：${quote.open.toFixed(2)} ${quote.currency}
+  最高：${quote.high.toFixed(2)} ${quote.currency}
+  最低：${quote.low.toFixed(2)} ${quote.currency}
+  昨收：${quote.previousClose.toFixed(2)} ${quote.currency}
+
+📊 成交情况：
+  成交量：${(quote.volume / 1000000).toFixed(2)} 百万股
+${quote.marketCap ? `  市值：${(quote.marketCap / 1000000000).toFixed(2)}B ${quote.currency}` : ""}
+${quote.pe ? `  市盈率(PE)：${quote.pe.toFixed(2)}` : ""}`;
+}
+
+function formatYahooKlineData(
+  symbol: string,
+  klines: yahoofinance.KlineData[],
+  period: string
+): string {
+  const periodName =
+    { "1mo": "1个月", "3mo": "3个月", "6mo": "6个月", "1y": "1年" }[period] ||
+    period;
+
+  // 计算统计数据
+  const closes = klines.map(k => k.close);
+  const avgPrice = closes.reduce((a, b) => a + b, 0) / closes.length;
+  const minPrice = Math.min(...closes);
+  const maxPrice = Math.max(...closes);
+
+  // 计算涨跌统计
+  let upDays = 0,
+    downDays = 0;
+  for (let i = 1; i < klines.length; i++) {
+    if (klines[i].close > klines[i - 1].close) upDays++;
+    else if (klines[i].close < klines[i - 1].close) downDays++;
+  }
+
+  // 最近5根K线详情
+  const recent5 = klines.slice(-5);
+  const klineDetails = recent5
+    .map(
+      k =>
+        `  ${k.timestamp}: 开${k.open.toFixed(2)} 高${k.high.toFixed(2)} 低${k.low.toFixed(2)} 收${k.close.toFixed(2)}`
+    )
+    .join("\n");
+
+  return `【股票 ${symbol} ${periodName}K线数据】
+
+📊 统计概览：
+  数据天数：${klines.length} 天
+  均价：${avgPrice.toFixed(2)}
+  最高价：${maxPrice.toFixed(2)}
+  最低价：${minPrice.toFixed(2)}
+  上涨天数：${upDays} 天
+  下跌天数：${downDays} 天
+
+📈 最近5日走势：
+${klineDetails}`;
 }
 
 function formatMarketNews(data: any[]): string {

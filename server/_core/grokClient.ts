@@ -2,7 +2,7 @@
  * GLM AI 客户端
  * 使用智谱AI的 GLM-4.7 作为前端对话模型
  *
- * 架构：GLM（聪明）+ Qwen3（便宜的工具调用）
+ * 架构：GLM（聪明）+ DeepSeek（便宜的工具调用）
  */
 
 import { ENV } from "./env";
@@ -214,12 +214,12 @@ export async function testGrokConnection(): Promise<{
   }
 }
 
-// ==================== Qwen 预处理（便宜的工具调用） ====================
+// ==================== DeepSeek 预处理（便宜的工具调用） ====================
 
 /**
- * 使用 Qwen 调用工具预处理数据
+ * 使用 DeepSeek 调用工具预处理数据
  */
-export async function preprocessWithQwen(
+export async function preprocessWithDeepSeek(
   stockCode: string,
   analysisType: "full" | "quick" = "quick"
 ): Promise<string> {
@@ -236,7 +236,7 @@ export async function preprocessWithQwen(
         Authorization: `Bearer ${ENV.forgeApiKey}`,
       },
       body: JSON.stringify({
-        model: "Qwen/Qwen3-235B-A22B",
+        model: "deepseek-ai/DeepSeek-V3.2",
         messages: [
           {
             role: "system",
@@ -249,13 +249,13 @@ export async function preprocessWithQwen(
     });
 
     if (!response.ok) {
-      throw new Error(`Qwen API Error: ${response.status}`);
+      throw new Error(`DeepSeek API Error: ${response.status}`);
     }
 
     const data = await response.json();
     return data.choices?.[0]?.message?.content || "";
   } catch (error: any) {
-    console.error("[Qwen Preprocess] Error:", error.message);
+    console.error("[DeepSeek Preprocess] Error:", error.message);
     return "";
   }
 }

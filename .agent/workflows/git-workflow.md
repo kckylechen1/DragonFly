@@ -79,11 +79,58 @@ git reset --hard <commit-hash>
 
 ## 多 Agent 协作规则
 
+### 基础规则
 1. **每个 Agent 一个分支**：不要多个 Agent 同时修改同一个分支
 2. **不要直接在 main 上开发**：所有开发都在 feature 分支进行
 3. **小步提交**：每完成一个小功能就提交，不要攒着
 4. **有意义的 commit message**：让别人（和未来的自己）能看懂
-5. **合并前确保能构建**：`npm run build` 必须成功
+5. **合并前确保能构建**：`pnpm check && pnpm build && pnpm test` 必须成功
+
+### ⚠️ 文件所有权规则 (2026-01-30 新增)
+
+| 文件类型 | Owner | 规则 |
+|----------|-------|------|
+| `types/index.ts` | GLM | ❌ Codex 禁止修改 |
+| `stores/index.ts` | GLM | ❌ Codex 禁止修改 |
+| `pnpm-lock.yaml` | GLM | ❌ 其他 Agent 禁止 `pnpm add` |
+
+**原因**: 避免 merge 冲突和导出冲突 (`Duplicate export 'MessageRole'`)
+
+### Wave Checkpoint 规则
+
+每个 Wave 结束后必须执行:
+
+```bash
+pnpm check     # TypeScript 类型检查
+pnpm build     # 生产构建
+pnpm test      # 单元测试
+git commit -m "Wave X checkpoint"
+```
+
+### 阻塞处理策略 (自愈优先)
+
+```
+遇到阻塞?
+    │
+    ├── 能自修复? → 尝试修复 (最多 2 次)
+    │                  │
+    │                  ├── 成功 → 继续
+    │                  └── 失败 → 跳过
+    │
+    └── 不能修复? → 记录到 ISSUES.md → 跳过 → 继续下一个任务
+```
+
+**❌ 错误做法**: 遇到阻塞就停止，等待人工介入
+**✅ 正确做法**: 记录问题，跳过，继续执行
+
+### Agent 速度排名 (实测)
+
+| Agent | 速度 | 适合任务 |
+|-------|------|----------|
+| 🟣 Amp | ⚡⚡⚡ | 复杂任务、Review、TUI |
+| 🟠 Droid | ⚡⚡ | 面板组件、设置界面 |
+| 🔵 GLM | ⚡ | 大量代码、stores/types |
+| 🟢 Codex | 🐢 | 需重试、适合过夜 |
 
 ## 查看历史
 
@@ -97,3 +144,4 @@ git log --oneline --graph --all -20
 # 查看某个文件的修改历史
 git log --oneline <file>
 ```
+
